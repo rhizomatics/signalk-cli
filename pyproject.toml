@@ -39,7 +39,7 @@ Repository = "https://github.com/rhizomatics/signalk-cli"
 signalk-history = "signalk.history.cli:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["signalk", "signalk_cli"]
+packages = ["signalk"]
 
 [tool.uv]
 package = false
