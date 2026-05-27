@@ -135,7 +135,9 @@ def expand_paths(
     regexps: list[str] = []
 
     for p in patterns:
-        if any(c in p for c in regex_chars):
+        if ":" in p:
+            literals.append(p)  # inline spec — pass through unchanged
+        elif any(c in p for c in regex_chars):
             regexps.append(p)
         else:
             literals.append(p)

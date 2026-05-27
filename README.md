@@ -45,13 +45,17 @@ Commands:
 
 ### `query`
 
-Fetch historical values for one or more paths and write to a file (default) or stdout.
+Fetch historical values for one or more paths and write to a file (default) or stdout. Aggregation can be controlled in the same way as the History API itself
+or a default form where `min_value`,`avg_value` and `max_value` are returned for every period.
 
 ```
 uv run history.py query [OPTIONS] PATH...
 ```
 
-**PATH** arguments are matched literally, or treated as Python regex / glob patterns if they contain metacharacters (`*`, `.`, `[`, etc.). Patterns are resolved to concrete paths by calling the server's `/paths` endpoint before the main query.
+**PATH** arguments may be:
+- **Literal paths** — e.g. `navigation.speedOverGround`
+- **Regex / glob patterns** — any argument containing metacharacters (`*`, `.`, `[`, `(`, etc.) is matched against the server's `/paths` endpoint. Bare `*` is treated as a glob wildcard.
+- **Inline path specs** — `path:method` or `path:method:param`, e.g. `navigation.speedOverGround:sma:5`. These pass through to the server unchanged.
 
 #### Options
 
@@ -61,36 +65,67 @@ uv run history.py query [OPTIONS] PATH...
 | `--from DATETIME` | — | Start of range (ISO 8601, e.g. `2026-05-26T00:00:00Z`) |
 | `--to DATETIME` | now | End of range (ISO 8601) |
 | `--duration DURATION` | — | Duration as seconds (`3600`) or ISO 8601 (`PT1H`, `PT15M`). Combined with `--from` or `--to`, or alone for a window ending now. |
-| `--resolution RESOLUTION` | server default | Sample window size: seconds or time expression (`1s`, `1m`, `1h`, `1d`) |
-| `--context TEXT` | `vessels.self` | SignalK context |
+| `--resolution RESOLUTION` | server default | Sample window size: seconds or time expression (`1s`, `1m`, `1h`, `1d`). |
+| `-c, --context TEXT` | `vessels.self` | SignalK context |
 | `--provider TEXT` | fetched & cached | History provider plugin id |
 | `--no-cache` | — | Ignore the cached default provider |
-| `--format [csv\|feather]` | `csv` | Output format |
+| `--aggregation / --agg` | — | Aggregation method: `average`, `min`, `max`, `first`, `last`, `mid`, `middle_index`, `sma`, `ema`. Omit for wide mode (see below). |
+| `--samples N` | server default | Sample count for `--agg sma` |
+| `--alpha FLOAT` | server default | Alpha (0–1) for `--agg ema` |
+| `--format [csv\|feather]` | from extension, else csv | Output format. Auto-detected from `.feather`, `.arrow`, `.fea` extensions. |
 | `--no-header` | — | Suppress the CSV header row |
 | `-o / --output FILE` | auto-named | Output file. Use `-` to write CSV to stdout. |
-| `--stdout` | — | Print CSV to stdout. If `--output` is also given, writes to both. Not supported with `--format feather`. |
+| `--stdout` | — | Print CSV to stdout. If `--output` is also given, writes to both. Not supported with feather. |
 
-Output files are auto-named `signalk-history-<server>-<timestamp>.csv` (or `.feather`) in the current directory.
+Output files are auto-named `signalk-history-<server>-<timestamp>.<ext>` in the current directory.
 
-If no time range is given when resolving patterns, the tool defaults to the hour ending now.
+If no time range is given, the tool defaults to the hour ending now.
 
-#### Output format
+#### Output columns
 
-**CSV** columns: `timestamp`, `path`, `value`. Structured values (positions, arrays) are JSON-encoded in the `value` column.
+**Wide mode** (default — no `--aggregation` and no inline specs): fetches `min`, `average`, and `max` for each path and writes them as separate columns:
 
-**Feather** produces an Apache Arrow Feather file with the same three string columns, readable with pandas, Polars, R, pyarrow etc. Feather files are much
-more compact and efficient than CSV, and can be loaded directly as a Polars dataframe.
+```
+timestamp, path, min_value, avg_value, max_value
+```
+
+**Narrow mode** (explicit `--aggregation` or inline path specs): single value column:
+
+```
+timestamp, path, value
+```
+
+Structured values (positions, arrays) are JSON-encoded in the value column.
+
+Feather output produces the same columns as Apache Arrow Feather, readable with pandas, Polars, R, pyarrow, etc.
 
 #### Examples
 
 ```bash
-# Last hour of speed over ground, auto-named CSV file
+# Last hour of speed — wide mode (min/max/avg columns), auto-named CSV
 uv run history.py query --host 10.36.10.21 --duration PT1H \
     navigation.speedOverGround
 
-# Multiple literal paths, 1-minute resolution, print to console only
+# Wide mode printed to stdout
+uv run history.py query --host 10.36.10.21 --duration PT1H --stdout \
+    navigation.speedOverGround
+
+# Simple moving average (5 samples), narrowed to one value column
+uv run history.py query --host 10.36.10.21 --duration PT1H \
+    --agg sma --samples 5 \
+    navigation.speedOverGround
+
+# EMA with alpha 0.2
+uv run history.py query --host 10.36.10.21 --duration PT1H \
+    --agg ema --alpha 0.2 \
+    navigation.speedOverGround
+
+# Inline spec — path:method, multiple paths with different methods
+uv run history.py query --host 10.36.10.21 --duration PT1H --stdout \
+    'navigation.speedOverGround:max' 'navigation.courseOverGroundTrue:average'
+
+# Multiple literal paths, 1-minute resolution
 uv run history.py query --host 10.36.10.21 --duration PT1H --resolution 1m \
-    --stdout \
     navigation.speedOverGround navigation.courseOverGroundTrue
 
 # All navigation paths, specific date range, write to named file
@@ -102,14 +137,21 @@ uv run history.py query --host 10.36.10.21 \
 # Glob wildcard — all paths for the last 30 minutes as Feather
 uv run history.py query --host 10.36.10.21 --duration PT30M --format feather '*'
 
-# Write to both a file and stdout simultaneously
+# Extension auto-selects feather format
 uv run history.py query --host 10.36.10.21 --duration PT1H \
-    --output out.csv --stdout \
-    navigation.speedOverGround
+    -o out.feather navigation.speedOverGround
+
+# Write to both a file and stdout
+uv run history.py query --host 10.36.10.21 --duration PT1H \
+    --output out.csv --stdout navigation.speedOverGround
 
 # Duration in seconds, suppress header, pipe to another tool
 uv run history.py query --host 10.36.10.21 --duration 3600 --no-header --stdout \
     navigation.speedOverGround | cut -d, -f1,3
+
+# Different context
+uv run history.py query --host 10.36.10.21 --duration PT1H -c vessels.urn:mrn:imo:mmsi:123456789 \
+    navigation.speedOverGround
 ```
 
 ---
@@ -122,7 +164,7 @@ List all SignalK paths that have recorded data in a given time range.
 uv run history.py list-paths [OPTIONS]
 ```
 
-Outputs one path per line to stdout. Defaults to the last hour if no time range is given.
+Outputs one path per line to stdout. Defaults to the last hour if no time range is given. Accepts the same `--from`/`--to`/`--duration`, `--provider`/`--no-cache`, and `-c/--context` options as `query`.
 
 ```bash
 # Paths recorded in the last hour
