@@ -22,7 +22,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "click>=8.0",
+    "click>=8.3.3",
     "niquests>=2.28",
     "pyarrow>=17.0",
 ]
@@ -32,15 +32,10 @@ dev = [
     "pre-commit>=4.4.0",
     "pytest>=9.0.0",
     "pytest-mock>=3.15.0",
-    "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
-    "pytest-httpx",
     "pytest-xdist",
-    "pytest-mqtt>=0.6.0",
-    "pytest-subprocess>=1.5.3",
     "coverage",
     "icdiff",
-    "actionlint-py",
     "codespell"
 ]
 
@@ -51,8 +46,16 @@ Repository = "https://github.com/rhizomatics/signalk-cli"
 [project.scripts]
 history = "signalk_cli.history:cli"
 
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.mypy]
+mypy_path=["./src","./tests"]
 
 [tool.uv]
+package = false
+no-build = false
 compile-bytecode = true
 managed = true
 exclude-newer = "5 days"
