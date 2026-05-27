@@ -257,7 +257,7 @@ wheels = [
 ]
 
 [[package]]
-name = "signalk-history"
+name = "signalk-cli"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

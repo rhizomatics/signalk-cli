@@ -3,21 +3,28 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "signalk-history"
+name = "signalk-cli"
 version = "0.1.0"
 description = "Query the SignalK v2 History API and export data as CSV or Apache Arrow Feather"
 readme = "README.md"
 requires-python = ">=3.13"
-license = { text = "MIT" }
-authors = [{ name = "Rhizomatics" }]
-keywords = ["signalk", "sailing", "marine", "history", "nmea"]
+license="Apache-2.0"
+authors = [
+    { name = "jey burrows", email = "jrb@rhizomatics.org.uk" }
+]
+
+keywords = ["signalk", "sailing", "marine", "nmea","boating"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
+    "Natural Language :: English",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Topic :: Scientific/Engineering",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14"
 ]
+
 dependencies = [
     "click>=8.0",
     "niquests>=2.28",
@@ -29,10 +36,10 @@ Homepage = "https://github.com/rhizomatics/signalk-cli"
 Repository = "https://github.com/rhizomatics/signalk-cli"
 
 [project.scripts]
-signalk-history = "signalk_cli.cli:cli"
+signalk-history = "signalk.history.cli:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["signalk_cli"]
+packages = ["signalk", "signalk_cli"]
 
 [tool.uv]
 package = false
