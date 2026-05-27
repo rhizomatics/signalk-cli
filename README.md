@@ -20,7 +20,8 @@ uv sync
 
 ## Commands
 
-Run via `uv run history.py <command>`. Set `SIGNALK_HOST` to avoid repeating `--host` on every call.
+Run via `python -m signalk_cli.history <command>`. 
+Set `SIGNALK_HOST` to avoid repeating `--host` on every call.
 
 ```bash
 export SIGNALK_HOST=10.36.10.21   # http:// is added automatically if omitted
@@ -29,8 +30,8 @@ export SIGNALK_HOST=10.36.10.21   # http:// is added automatically if omitted
 Run with no arguments to list available commands:
 
 ```
-$ uv run history.py
-Usage: history.py [OPTIONS] COMMAND [ARGS]...
+$ python -m signalk_cli.history
+Usage: signak_cli.history [OPTIONS] COMMAND [ARGS]...
 
   SignalK v2 history CLI.
 
@@ -49,7 +50,7 @@ Fetch historical values for one or more paths and write to a file (default) or s
 or a default form where `min_value`,`avg_value` and `max_value` are returned for every period.
 
 ```
-uv run history.py query [OPTIONS] PATH...
+python -m signalk_cli.history query [OPTIONS] PATH...
 ```
 
 **PATH** arguments may be:
@@ -103,54 +104,54 @@ Feather output produces the same columns as Apache Arrow Feather, readable with 
 
 ```bash
 # Last hour of speed — wide mode (min/max/avg columns), auto-named CSV
-uv run history.py query --host 10.36.10.21 --duration PT1H \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
     navigation.speedOverGround
 
 # Wide mode printed to stdout
-uv run history.py query --host 10.36.10.21 --duration PT1H --stdout \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H --stdout \
     navigation.speedOverGround
 
 # Simple moving average (5 samples), narrowed to one value column
-uv run history.py query --host 10.36.10.21 --duration PT1H \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
     --agg sma --samples 5 \
     navigation.speedOverGround
 
 # EMA with alpha 0.2
-uv run history.py query --host 10.36.10.21 --duration PT1H \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
     --agg ema --alpha 0.2 \
     navigation.speedOverGround
 
 # Inline spec — path:method, multiple paths with different methods
-uv run history.py query --host 10.36.10.21 --duration PT1H --stdout \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H --stdout \
     'navigation.speedOverGround:max' 'navigation.courseOverGroundTrue:average'
 
 # Multiple literal paths, 1-minute resolution
-uv run history.py query --host 10.36.10.21 --duration PT1H --resolution 1m \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H --resolution 1m \
     navigation.speedOverGround navigation.courseOverGroundTrue
 
 # All navigation paths, specific date range, write to named file
-uv run history.py query --host 10.36.10.21 \
+python -m signalk_cli.history query --host 10.36.10.21 \
     --from 2026-05-26T00:00:00Z --to 2026-05-27T00:00:00Z \
     --output may26.csv \
     'navigation\..*'
 
 # Glob wildcard — all paths for the last 30 minutes as Feather
-uv run history.py query --host 10.36.10.21 --duration PT30M --format feather '*'
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT30M --format feather '*'
 
 # Extension auto-selects feather format
-uv run history.py query --host 10.36.10.21 --duration PT1H \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
     -o out.feather navigation.speedOverGround
 
 # Write to both a file and stdout
-uv run history.py query --host 10.36.10.21 --duration PT1H \
+python -m signalk_cli.historyquery --host 10.36.10.21 --duration PT1H \
     --output out.csv --stdout navigation.speedOverGround
 
 # Duration in seconds, suppress header, pipe to another tool
-uv run history.py query --host 10.36.10.21 --duration 3600 --no-header --stdout \
+python -m signalk_cli.history query --host 10.36.10.21 --duration 3600 --no-header --stdout \
     navigation.speedOverGround | cut -d, -f1,3
 
 # Different context
-uv run history.py query --host 10.36.10.21 --duration PT1H -c vessels.urn:mrn:imo:mmsi:123456789 \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H -c vessels.urn:mrn:imo:mmsi:123456789 \
     navigation.speedOverGround
 ```
 
@@ -161,21 +162,21 @@ uv run history.py query --host 10.36.10.21 --duration PT1H -c vessels.urn:mrn:im
 List all SignalK paths that have recorded data in a given time range.
 
 ```
-uv run history.py list-paths [OPTIONS]
+python -m signalk_cli.history list-paths [OPTIONS]
 ```
 
 Outputs one path per line to stdout. Defaults to the last hour if no time range is given. Accepts the same `--from`/`--to`/`--duration`, `--provider`/`--no-cache`, and `-c/--context` options as `query`.
 
 ```bash
 # Paths recorded in the last hour
-uv run history.py list-paths --host 10.36.10.21
+python -m signalk_cli.history list-paths --host 10.36.10.21
 
 # Paths available on a specific day
-uv run history.py list-paths --host 10.36.10.21 \
+python -m signalk_cli.historylist-paths --host 10.36.10.21 \
     --from 2026-05-26T00:00:00Z --to 2026-05-27T00:00:00Z
 
 # Pipe into grep
-uv run history.py list-paths --host 10.36.10.21 --duration PT24H | grep navigation
+python -m signalk_cli.history list-paths --host 10.36.10.21 --duration PT24H | grep navigation
 ```
 
 ---
@@ -185,7 +186,7 @@ uv run history.py list-paths --host 10.36.10.21 --duration PT24H | grep navigati
 List all registered history provider plugins and identify the default.
 
 ```
-uv run history.py list-providers --host 10.36.10.21
+python -m signalk_cli.history list-providers --host 10.36.10.21
 ```
 
 Example output:
@@ -204,16 +205,16 @@ The default provider is used automatically when `--provider` is not specified on
 
 List SignalK contexts (vessels, aircraft, etc.) that have recorded data in a given time range.
 
-```
-uv run history.py list-contexts [OPTIONS]
+```bash
+python -m signalk_cli.history list-contexts [OPTIONS]
 ```
 
 Defaults to the last hour if no time range is given.
 
 ```bash
-uv run history.py list-contexts --host 10.36.10.21
+python -m signalk_cli.history list-contexts --host 10.36.10.21
 
-uv run history.py list-contexts --host 10.36.10.21 \
+python -m signalk_cli.history list-contexts --host 10.36.10.21 \
     --from 2026-05-26T00:00:00Z --to 2026-05-27T00:00:00Z
 ```
 

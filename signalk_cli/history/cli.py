@@ -28,30 +28,52 @@ from .output import (
 )
 
 AGGREGATION_METHODS = [
-    "average", "min", "max", "first", "last", "mid", "middle_index", "sma", "ema",
+    "average",
+    "min",
+    "max",
+    "first",
+    "last",
+    "mid",
+    "middle_index",
+    "sma",
+    "ema",
 ]
 
 # ---------------------------------------------------------------------------
 # Shared option decorators
 # ---------------------------------------------------------------------------
 
+
 def _host_option(f):
     return click.option(
-        "--host", required=True, envvar="SIGNALK_HOST",
+        "--host",
+        required=True,
+        envvar="SIGNALK_HOST",
         help="SignalK server base URL. http:// added if scheme omitted.",
     )(f)
 
 
 def _provider_options(f):
-    f = click.option("--no-cache", is_flag=True, help="Ignore cached default provider")(f)
-    f = click.option("--provider", help="History provider plugin id (default fetched and cached automatically)")(f)
+    f = click.option("--no-cache", is_flag=True, help="Ignore cached default provider")(
+        f
+    )
+    f = click.option(
+        "--provider",
+        help="History provider plugin id (default fetched and cached automatically)",
+    )(f)
     return f
 
 
 def _time_options(f):
-    f = click.option("--duration", metavar="DURATION", help="Duration: integer seconds or ISO 8601 (e.g. PT15M, 3600)")(f)
+    f = click.option(
+        "--duration",
+        metavar="DURATION",
+        help="Duration: integer seconds or ISO 8601 (e.g. PT15M, 3600)",
+    )(f)
     f = click.option("--to", metavar="DATETIME", help="End of range (ISO 8601)")(f)
-    f = click.option("--from", "from_", metavar="DATETIME", help="Start of range (ISO 8601)")(f)
+    f = click.option(
+        "--from", "from_", metavar="DATETIME", help="Start of range (ISO 8601)"
+    )(f)
     return f
 
 
@@ -106,6 +128,7 @@ def _build_path_specs(
 # CLI group
 # ---------------------------------------------------------------------------
 
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 def cli():
     """SignalK v2 history CLI."""
@@ -115,37 +138,84 @@ def cli():
 # query
 # ---------------------------------------------------------------------------
 
+
 @cli.command()
 @click.argument("paths", nargs=-1, required=True, metavar="PATH...")
 @_host_option
 @_time_options
-@click.option("--resolution", metavar="RESOLUTION",
-              help="Sample window: integer seconds or time expression (1s, 1m, 1h, 1d)")
-@click.option("--context", "-c", default="vessels.self", show_default=True,
-              help="SignalK context")
+@click.option(
+    "--resolution",
+    metavar="RESOLUTION",
+    help="Sample window: integer seconds or time expression (1s, 1m, 1h, 1d)",
+)
+@click.option(
+    "--context", "-c", default="vessels.self", show_default=True, help="SignalK context"
+)
 @_provider_options
-@click.option("--aggregation", "--agg", "aggregation",
-              type=click.Choice(AGGREGATION_METHODS, case_sensitive=False),
-              default=None,
-              help=(
-                  "Aggregation method applied to all paths. "
-                  "Omit for wide mode (min/max/average columns). "
-                  "Paths may also carry an inline ':method[:param]' suffix."
-              ))
-@click.option("--samples", type=int, default=None, metavar="N",
-              help="Sample count for --aggregation sma")
-@click.option("--alpha", type=float, default=None, metavar="FLOAT",
-              help="Alpha value (0-1) for --aggregation ema")
-@click.option("--format", "fmt", default=None,
-              type=click.Choice(["csv", "feather"], case_sensitive=False),
-              help="Output format (default: feather if output extension is .feather/.arrow/.fea, else csv)")
+@click.option(
+    "--aggregation",
+    "--agg",
+    "aggregation",
+    type=click.Choice(AGGREGATION_METHODS, case_sensitive=False),
+    default=None,
+    help=(
+        "Aggregation method applied to all paths. "
+        "Omit for wide mode (min/max/average columns). "
+        "Paths may also carry an inline ':method[:param]' suffix."
+    ),
+)
+@click.option(
+    "--samples",
+    type=int,
+    default=None,
+    metavar="N",
+    help="Sample count for --aggregation sma",
+)
+@click.option(
+    "--alpha",
+    type=float,
+    default=None,
+    metavar="FLOAT",
+    help="Alpha value (0-1) for --aggregation ema",
+)
+@click.option(
+    "--format",
+    "fmt",
+    default=None,
+    type=click.Choice(["csv", "feather"], case_sensitive=False),
+    help="Output format (default: feather if output extension is .feather/.arrow/.fea, else csv)",
+)
 @click.option("--no-header", is_flag=True, help="Suppress header row (CSV only)")
-@click.option("--output", "-o", default=None, metavar="FILE",
-              help="Output file (default: signalk-history-<server>-<timestamp>.<ext>, use - for stdout)")
-@click.option("--stdout", is_flag=True,
-              help="Also print to stdout; when no --output given, stdout only (CSV only)")
-def query(paths, host, from_, to, duration, resolution, context, provider, no_cache,
-          aggregation, samples, alpha, fmt, no_header, output, stdout):
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="FILE",
+    help="Output file (default: signalk-history-<server>-<timestamp>.<ext>, use - for stdout)",
+)
+@click.option(
+    "--stdout",
+    is_flag=True,
+    help="Also print to stdout; when no --output given, stdout only (CSV only)",
+)
+def query(
+    paths,
+    host,
+    from_,
+    to,
+    duration,
+    resolution,
+    context,
+    provider,
+    no_cache,
+    aggregation,
+    samples,
+    alpha,
+    fmt,
+    no_header,
+    output,
+    stdout,
+):
     """Query history and write results as CSV or Feather.
 
     PATH arguments may be literal SignalK paths, Python regex/glob patterns,
@@ -190,14 +260,18 @@ def query(paths, host, from_, to, duration, resolution, context, provider, no_ca
         output += ".feather" if fmt == "feather" else ".csv"
 
     if fmt == "feather" and stdout:
-        raise click.UsageError("--stdout is not supported for feather output (binary format)")
+        raise click.UsageError(
+            "--stdout is not supported for feather output (binary format)"
+        )
 
     click.echo(f"Server:      {host}", err=True)
     click.echo(f"Provider:    {provider or '(none)'}", err=True)
     click.echo(f"Context:     {context}", err=True)
     click.echo(f"From:        {time_params.get('from', '(server default)')}", err=True)
     click.echo(f"To:          {time_params.get('to', '(server default)')}", err=True)
-    click.echo(f"Duration:    {time_params.get('duration', '(not specified)')}", err=True)
+    click.echo(
+        f"Duration:    {time_params.get('duration', '(not specified)')}", err=True
+    )
     click.echo(f"Resolution:  {resolution or '(server default)'}", err=True)
     click.echo(f"Format:      {fmt}", err=True)
 
@@ -262,11 +336,14 @@ def query(paths, host, from_, to, duration, resolution, context, provider, no_ca
 # list-paths
 # ---------------------------------------------------------------------------
 
+
 @cli.command("list-paths")
 @_host_option
 @_time_options
 @_provider_options
-@click.option("--context", "-c", default="vessels.self", show_default=True, help="SignalK context")
+@click.option(
+    "--context", "-c", default="vessels.self", show_default=True, help="SignalK context"
+)
 def list_paths(host, from_, to, duration, provider, no_cache, context):
     """List paths that have data for the given time range."""
     host = normalise_host(host)
@@ -296,6 +373,7 @@ def list_paths(host, from_, to, duration, provider, no_cache, context):
 # list-providers
 # ---------------------------------------------------------------------------
 
+
 @cli.command("list-providers")
 @_host_option
 def list_providers(host):
@@ -322,6 +400,7 @@ def list_providers(host):
 # ---------------------------------------------------------------------------
 # list-contexts
 # ---------------------------------------------------------------------------
+
 
 @cli.command("list-contexts")
 @_host_option

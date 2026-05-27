@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 import niquests
+import logging
 
 HISTORY_BASE = "/signalk/v2/api/history"
 CACHE_DIR = Path.home() / ".cache" / "signalk-history-cli"
@@ -34,7 +35,7 @@ def apply_time_default(time_params: dict) -> dict:
     result = {
         **time_params,
         "from": from_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "to":   to_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "to": to_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     click.echo(
         f"No time range specified — defaulting to from={result['from']} to={result['to']}",
@@ -50,14 +51,15 @@ def api_error(exc: niquests.RequestException) -> str:
         try:
             body = resp.json()
             return body.get("error") or body.get("message") or str(exc)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug("Error handling API error: %s", e)
     return str(exc)
 
 
 # ---------------------------------------------------------------------------
 # Provider cache (on-disk, per host)
 # ---------------------------------------------------------------------------
+
 
 def _cache_key(host: str) -> Path:
     safe = re.sub(r"[^\w.-]", "_", host)
@@ -88,7 +90,9 @@ def fetch_default_provider(base_url: str) -> str:
     return resp.json()["id"]
 
 
-def resolve_provider(host: str, base_url: str, provider: str | None, no_cache: bool) -> str | None:
+def resolve_provider(
+    host: str, base_url: str, provider: str | None, no_cache: bool
+) -> str | None:
     """Return the effective provider id, fetching and caching the default if needed."""
     if provider:
         return provider
@@ -100,7 +104,9 @@ def resolve_provider(host: str, base_url: str, provider: str | None, no_cache: b
             if not no_cache:
                 save_cached_provider(host, provider)
         except niquests.HTTPError as e:
-            click.echo(f"Warning: could not fetch default provider: {api_error(e)}", err=True)
+            click.echo(
+                f"Warning: could not fetch default provider: {api_error(e)}", err=True
+            )
     return provider
 
 
@@ -108,7 +114,10 @@ def resolve_provider(host: str, base_url: str, provider: str | None, no_cache: b
 # Path resolution
 # ---------------------------------------------------------------------------
 
-def fetch_server_paths(base_url: str, time_params: dict, provider: str | None) -> list[str]:
+
+def fetch_server_paths(
+    base_url: str, time_params: dict, provider: str | None
+) -> list[str]:
     """Fetch all paths that have data for the given time range."""
     params = {k: v for k, v in time_params.items() if v is not None}
     if provider:
@@ -152,7 +161,9 @@ def expand_paths(
         try:
             return re.compile(pattern)
         except re.PatternError:
-            click.echo(f"Note: '{pattern}' is not valid regex, treating as glob", err=True)
+            click.echo(
+                f"Note: '{pattern}' is not valid regex, treating as glob", err=True
+            )
             return re.compile(fnmatch.translate(pattern))
 
     matched: set[str] = set()

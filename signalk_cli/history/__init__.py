@@ -1,4 +1,4 @@
-"""signalk.history — Python client and CLI for the SignalK v2 History API."""
+"""signalk_cli.history — Python client and CLI for the SignalK v2 History API."""
 
 from .history_api import (
     HISTORY_BASE,

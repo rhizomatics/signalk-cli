@@ -3,6 +3,7 @@
 import csv
 import json
 import sys
+from typing import IO, cast
 
 import pyarrow as pa
 import pyarrow.feather as feather
@@ -12,6 +13,7 @@ FEATHER_EXTENSIONS = {".feather", ".arrow", ".fea"}
 
 class _MultiWriter:
     """Fans writes out to multiple underlying streams."""
+
     def __init__(self, *fhs):
         self._fhs = fhs
 
@@ -27,6 +29,7 @@ class _MultiWriter:
 # ---------------------------------------------------------------------------
 # Narrow mode (single value column)
 # ---------------------------------------------------------------------------
+
 
 def extract_rows(result: dict) -> tuple[list, list, list, set[str]]:
     """Flatten an API result into parallel (timestamps, paths, values, unique_paths) lists."""
@@ -70,11 +73,13 @@ def write_csv(result: dict, sink, no_header: bool) -> tuple[int, set[str]]:
 def write_feather(result: dict, output: str) -> tuple[int, set[str]]:
     """Write result as Feather (timestamp, path, value). Returns (row_count, unique_paths)."""
     timestamps, paths, values, unique_paths = extract_rows(result)
-    table = pa.table({
-        "timestamp": pa.array(timestamps, type=pa.string()),
-        "path":      pa.array(paths,      type=pa.string()),
-        "value":     pa.array(values,     type=pa.string()),
-    })
+    table = pa.table(
+        {
+            "timestamp": pa.array(timestamps, type=pa.string()),
+            "path": pa.array(paths, type=pa.string()),
+            "value": pa.array(values, type=pa.string()),
+        }
+    )
     feather.write_feather(table, output)
     return len(timestamps), unique_paths
 
@@ -82,6 +87,7 @@ def write_feather(result: dict, output: str) -> tuple[int, set[str]]:
 # ---------------------------------------------------------------------------
 # Wide mode (min_value / max_value / avg_value columns)
 # ---------------------------------------------------------------------------
+
 
 def _cell(row: list, col_idx: int) -> str:
     """Get a string cell value from a data row by 0-based column index (row[0] is timestamp)."""
@@ -118,9 +124,9 @@ def extract_rows_wide(result: dict) -> tuple[list, list, list, list, list, set[s
         ts = row[0]
         for path in ordered_paths:
             methods = path_method_idx[path]
-            mn = _cell(row, methods["min"])      if "min"     in methods else ""
-            av = _cell(row, methods["average"])  if "average" in methods else ""
-            mx = _cell(row, methods["max"])      if "max"     in methods else ""
+            mn = _cell(row, methods["min"]) if "min" in methods else ""
+            av = _cell(row, methods["average"]) if "average" in methods else ""
+            mx = _cell(row, methods["max"]) if "max" in methods else ""
             if not mn and not av and not mx:
                 continue
             timestamps.append(ts)
@@ -135,7 +141,9 @@ def extract_rows_wide(result: dict) -> tuple[list, list, list, list, list, set[s
 
 def write_csv_wide(result: dict, sink, no_header: bool) -> tuple[int, set[str]]:
     """Write result as CSV (timestamp, path, min_value, max_value, avg_value)."""
-    timestamps, paths, min_vals, max_vals, avg_vals, unique_paths = extract_rows_wide(result)
+    timestamps, paths, min_vals, max_vals, avg_vals, unique_paths = extract_rows_wide(
+        result
+    )
     writer = csv.writer(sink)
     if not no_header:
         writer.writerow(["timestamp", "path", "min_value", "avg_value", "max_value"])
@@ -146,14 +154,18 @@ def write_csv_wide(result: dict, sink, no_header: bool) -> tuple[int, set[str]]:
 
 def write_feather_wide(result: dict, output: str) -> tuple[int, set[str]]:
     """Write result as Feather (timestamp, path, min_value, max_value, avg_value)."""
-    timestamps, paths, min_vals, max_vals, avg_vals, unique_paths = extract_rows_wide(result)
-    table = pa.table({
-        "timestamp": pa.array(timestamps, type=pa.string()),
-        "path":      pa.array(paths,      type=pa.string()),
-        "min_value": pa.array(min_vals,   type=pa.string()),
-        "avg_value": pa.array(avg_vals,   type=pa.string()),
-        "max_value": pa.array(max_vals,   type=pa.string()),
-    })
+    timestamps, paths, min_vals, max_vals, avg_vals, unique_paths = extract_rows_wide(
+        result
+    )
+    table = pa.table(
+        {
+            "timestamp": pa.array(timestamps, type=pa.string()),
+            "path": pa.array(paths, type=pa.string()),
+            "min_value": pa.array(min_vals, type=pa.string()),
+            "avg_value": pa.array(avg_vals, type=pa.string()),
+            "max_value": pa.array(max_vals, type=pa.string()),
+        }
+    )
     feather.write_feather(table, output)
     return len(timestamps), unique_paths
 
@@ -162,13 +174,17 @@ def write_feather_wide(result: dict, output: str) -> tuple[int, set[str]]:
 # Sink helper
 # ---------------------------------------------------------------------------
 
-def csv_sink(output: str, write_to_file: bool, write_to_stdout: bool):
+
+def csv_sink(
+    output: str, write_to_file: bool, write_to_stdout: bool
+) -> tuple[IO[str] | None, _MultiWriter | IO[str]]:
     """Return (file_handle_or_None, sink) for CSV writing. Caller must close file_handle."""
-    file_fh = open(output, "w", newline="") if write_to_file else None
+    file_fh: IO[str] | None = open(output, "w", newline="") if write_to_file else None
+    sink: _MultiWriter | IO[str]
     if write_to_file and write_to_stdout:
-        sink = _MultiWriter(file_fh, sys.stdout)
+        sink = _MultiWriter(cast(IO[str], file_fh), sys.stdout)
     elif write_to_file:
-        sink = file_fh
+        sink = cast(IO[str], file_fh)
     else:
         sink = sys.stdout
     return file_fh, sink

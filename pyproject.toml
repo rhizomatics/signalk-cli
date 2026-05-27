@@ -1,7 +1,3 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "signalk-cli"
 version = "0.1.0"
@@ -30,16 +26,42 @@ dependencies = [
     "niquests>=2.28",
     "pyarrow>=17.0",
 ]
+[dependency-groups]
+dev = [
+    "ruff>=0.15.0",
+    "pre-commit>=4.4.0",
+    "pytest>=9.0.0",
+    "pytest-mock>=3.15.0",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.0.0",
+    "pytest-httpx",
+    "pytest-xdist",
+    "pytest-mqtt>=0.6.0",
+    "pytest-subprocess>=1.5.3",
+    "coverage",
+    "icdiff",
+    "actionlint-py",
+    "codespell"
+]
 
 [project.urls]
 Homepage = "https://github.com/rhizomatics/signalk-cli"
 Repository = "https://github.com/rhizomatics/signalk-cli"
 
 [project.scripts]
-signalk-history = "signalk.history.cli:cli"
+history = "signalk_cli.history:cli"
 
-[tool.hatch.build.targets.wheel]
-packages = ["signalk"]
 
 [tool.uv]
-package = false
+compile-bytecode = true
+managed = true
+exclude-newer = "5 days"
+add-bounds = "major"
+
+[build-system]
+requires = ["uv_build>=0.9.18"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "src"
+module-name = "signalk_cli"
