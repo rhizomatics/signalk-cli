@@ -1,5 +1,7 @@
 """Click CLI for the SignalK v2 History API."""
 
+import contextlib
+import io
 import re
 import sys
 from datetime import datetime, timezone
@@ -13,10 +15,13 @@ from .history_api import (
     HISTORY_BASE,
     api_error,
     apply_time_default,
+    discover_host,
     expand_paths,
     fetch_server_paths,
+    get_cached_host,
     normalise_host,
     resolve_provider,
+    save_cached_host,
 )
 from .output import (
     FEATHER_EXTENSIONS,
@@ -47,10 +52,32 @@ AGGREGATION_METHODS = [
 def _host_option(f):
     return click.option(
         "--host",
-        required=True,
+        default=None,
         envvar="SIGNALK_HOST",
-        help="SignalK server base URL. http:// added if scheme omitted.",
+        help="SignalK server base URL. http:// added if scheme omitted. "
+        "Discovered via mDNS if omitted.",
     )(f)
+
+
+def _resolve_host(host: str | None, no_cache: bool = False) -> str:
+    """Return a normalised host URL, discovering via mDNS if none provided."""
+    if host:
+        return normalise_host(host)
+    if not no_cache:
+        cached = get_cached_host()
+        if cached:
+            click.echo(f"Using cached host: {cached}", err=True)
+            return cached
+    click.echo("No host specified — searching for SignalK via mDNS...", err=True)
+    discovered = discover_host()
+    if not discovered:
+        raise click.UsageError(
+            "No SignalK server found via mDNS. Use --host or set SIGNALK_HOST."
+        )
+    click.echo(f"Discovered: {discovered}", err=True)
+    if not no_cache:
+        save_cached_host(discovered)
+    return discovered
 
 
 def _provider_options(f):
@@ -198,6 +225,11 @@ def cli():
     is_flag=True,
     help="Also print to stdout; when no --output given, stdout only (CSV only)",
 )
+@click.option(
+    "--bare",
+    is_flag=True,
+    help="Output CSV to stdout only, suppressing all informational messages. Implies --stdout.",
+)
 def query(
     paths,
     host,
@@ -215,6 +247,7 @@ def query(
     no_header,
     output,
     stdout,
+    bare,
 ):
     """Query history and write results as CSV or Feather.
 
@@ -231,105 +264,117 @@ def query(
       signalk-history query --host 10.36.10.21 --duration PT1H navigation.speedOverGround:ema:0.2
       signalk-history query --host 10.36.10.21 --from 2026-05-26T00:00:00Z --to 2026-05-27T00:00:00Z '*'
     """
-    host = normalise_host(host)
-    base_url = host.rstrip("/") + HISTORY_BASE
-    provider = resolve_provider(host, base_url, provider, no_cache)
-    time_params = apply_time_default(_build_time_params(from_, to, duration))
+    # --bare: stdout-only with all informational messages suppressed
+    if bare and output is None:
+        output = "-"
 
-    # Resolve output path early so we can infer format from extension
-    explicit_file = bool(output and output != "-")
-    if output is None:
-        server_name = urlparse(host).hostname or re.sub(r"[^\w.-]", "_", host)
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        # Extension determined after format is known; placeholder for now
-        output = f"signalk-history-{server_name}-{ts}"
-        explicit_file = True
-        defer_ext = True
-    else:
-        defer_ext = False
-
-    # Auto-detect format from extension when not explicitly set
-    if fmt is None:
-        if Path(output).suffix.lower() in FEATHER_EXTENSIONS:
-            fmt = "feather"
-        else:
-            fmt = "csv"
-
-    # Now append extension to auto-named file
-    if defer_ext:
-        output += ".feather" if fmt == "feather" else ".csv"
-
-    if fmt == "feather" and stdout:
-        raise click.UsageError(
-            "--stdout is not supported for feather output (binary format)"
-        )
-
-    click.echo(f"Server:      {host}", err=True)
-    click.echo(f"Provider:    {provider or '(none)'}", err=True)
-    click.echo(f"Context:     {context}", err=True)
-    click.echo(f"From:        {time_params.get('from', '(server default)')}", err=True)
-    click.echo(f"To:          {time_params.get('to', '(server default)')}", err=True)
-    click.echo(
-        f"Duration:    {time_params.get('duration', '(not specified)')}", err=True
+    _stderr = (
+        contextlib.redirect_stderr(io.StringIO()) if bare else contextlib.nullcontext()
     )
-    click.echo(f"Resolution:  {resolution or '(server default)'}", err=True)
-    click.echo(f"Format:      {fmt}", err=True)
+    with _stderr:
+        host = _resolve_host(host, no_cache)
+        base_url = host.rstrip("/") + HISTORY_BASE
+        provider = resolve_provider(host, base_url, provider, no_cache)
+        time_params = apply_time_default(_build_time_params(from_, to, duration))
 
-    try:
-        resolved = expand_paths(list(paths), base_url, time_params, provider)
-    except niquests.RequestException as e:
-        click.echo(f"Error resolving paths: {api_error(e)}", err=True)
-        sys.exit(1)
-
-    if not resolved:
-        click.echo("No paths matched — nothing to query.", err=True)
-        sys.exit(1)
-
-    path_query, wide_mode = _build_path_specs(resolved, aggregation, samples, alpha)
-
-    agg_label = aggregation or ("wide (min/max/average)" if wide_mode else "inline")
-    click.echo(f"Aggregation: {agg_label}", err=True)
-
-    params: dict = {**time_params, "paths": path_query, "context": context}
-    if resolution:
-        params["resolution"] = resolution
-    if provider:
-        params["provider"] = provider
-
-    try:
-        resp = niquests.get(f"{base_url}/values", params=params, timeout=60)
-        resp.raise_for_status()
-    except niquests.RequestException as e:
-        click.echo(f"Error fetching history: {api_error(e)}", err=True)
-        sys.exit(1)
-
-    result = resp.json()
-
-    write_to_stdout = stdout or (output == "-")
-    write_to_file = explicit_file
-
-    if fmt == "feather":
-        if wide_mode:
-            row_count, unique_paths = write_feather_wide(result, output)
+        # Resolve output path early so we can infer format from extension
+        explicit_file = bool(output and output != "-")
+        if output is None:
+            server_name = urlparse(host).hostname or re.sub(r"[^\w.-]", "_", host)
+            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            # Extension determined after format is known; placeholder for now
+            output = f"signalk-history-{server_name}-{ts}"
+            explicit_file = True
+            defer_ext = True
         else:
-            row_count, unique_paths = write_feather(result, output)
-    else:
-        file_fh, sink = csv_sink(output, write_to_file, write_to_stdout)
-        try:
-            if wide_mode:
-                row_count, unique_paths = write_csv_wide(result, sink, no_header)
+            defer_ext = False
+
+        # Auto-detect format from extension when not explicitly set
+        if fmt is None:
+            if Path(output).suffix.lower() in FEATHER_EXTENSIONS:
+                fmt = "feather"
             else:
-                row_count, unique_paths = write_csv(result, sink, no_header)
-        finally:
-            if file_fh:
-                file_fh.close()
+                fmt = "csv"
 
-    if write_to_file:
-        click.echo(f"Wrote {output}", err=True)
-    click.echo(
-        f"{row_count} rows, {len(unique_paths)} unique path(s): {', '.join(sorted(unique_paths))}",
-        err=True,
-    )
+        # Now append extension to auto-named file
+        if defer_ext:
+            output += ".feather" if fmt == "feather" else ".csv"
+
+        if fmt == "feather" and (stdout or bare):
+            raise click.UsageError(
+                "--stdout is not supported for feather output (binary format)"
+            )
+
+        click.echo(f"Server:      {host}", err=True)
+        click.echo(f"Provider:    {provider or '(none)'}", err=True)
+        click.echo(f"Context:     {context}", err=True)
+        click.echo(
+            f"From:        {time_params.get('from', '(server default)')}", err=True
+        )
+        click.echo(
+            f"To:          {time_params.get('to', '(server default)')}", err=True
+        )
+        click.echo(
+            f"Duration:    {time_params.get('duration', '(not specified)')}", err=True
+        )
+        click.echo(f"Resolution:  {resolution or '(server default)'}", err=True)
+        click.echo(f"Format:      {fmt}", err=True)
+
+        try:
+            resolved = expand_paths(list(paths), base_url, time_params, provider)
+        except niquests.RequestException as e:
+            click.echo(f"Error resolving paths: {api_error(e)}", err=True)
+            sys.exit(1)
+
+        if not resolved:
+            click.echo("No paths matched — nothing to query.", err=True)
+            sys.exit(1)
+
+        path_query, wide_mode = _build_path_specs(resolved, aggregation, samples, alpha)
+
+        agg_label = aggregation or ("wide (min/max/average)" if wide_mode else "inline")
+        click.echo(f"Aggregation: {agg_label}", err=True)
+
+        params: dict = {**time_params, "paths": path_query, "context": context}
+        if resolution:
+            params["resolution"] = resolution
+        if provider:
+            params["provider"] = provider
+
+        try:
+            resp = niquests.get(f"{base_url}/values", params=params, timeout=60)
+            resp.raise_for_status()
+        except niquests.RequestException as e:
+            click.echo(f"Error fetching history: {api_error(e)}", err=True)
+            sys.exit(1)
+
+        result = resp.json()
+
+        write_to_stdout = stdout or bare or (output == "-")
+        write_to_file = explicit_file
+
+        if fmt == "feather":
+            if wide_mode:
+                row_count, unique_paths = write_feather_wide(result, output)
+            else:
+                row_count, unique_paths = write_feather(result, output)
+        else:
+            file_fh, sink = csv_sink(output, write_to_file, write_to_stdout)
+            try:
+                if wide_mode:
+                    row_count, unique_paths = write_csv_wide(result, sink, no_header)
+                else:
+                    row_count, unique_paths = write_csv(result, sink, no_header)
+            finally:
+                if file_fh:
+                    file_fh.close()
+
+        if write_to_file:
+            click.echo(f"Wrote {output}", err=True)
+        click.echo(
+            f"{row_count} rows, {len(unique_paths)} unique path(s): {', '.join(sorted(unique_paths))}",
+            err=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -346,7 +391,7 @@ def query(
 )
 def list_paths(host, from_, to, duration, provider, no_cache, context):
     """List paths that have data for the given time range."""
-    host = normalise_host(host)
+    host = _resolve_host(host, no_cache)
     base_url = host.rstrip("/") + HISTORY_BASE
     provider = resolve_provider(host, base_url, provider, no_cache)
     time_params = apply_time_default(_build_time_params(from_, to, duration))
@@ -378,7 +423,7 @@ def list_paths(host, from_, to, duration, provider, no_cache, context):
 @_host_option
 def list_providers(host):
     """List registered history providers."""
-    host = normalise_host(host)
+    host = _resolve_host(host)
     base_url = host.rstrip("/") + HISTORY_BASE
     click.echo(f"Server: {host}", err=True)
 
@@ -408,7 +453,7 @@ def list_providers(host):
 @_provider_options
 def list_contexts(host, from_, to, duration, provider, no_cache):
     """List contexts that have historical data for the given time range."""
-    host = normalise_host(host)
+    host = _resolve_host(host, no_cache)
     base_url = host.rstrip("/") + HISTORY_BASE
     provider = resolve_provider(host, base_url, provider, no_cache)
     time_params = apply_time_default(_build_time_params(from_, to, duration))

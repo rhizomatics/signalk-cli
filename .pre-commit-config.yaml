@@ -53,6 +53,8 @@ repos:
           - pyarrow
           - click
           - niquests
+          - pytest
+          - zeroconf
  
   - repo: https://github.com/PyCQA/bandit
     rev: '1.9.4'

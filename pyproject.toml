@@ -25,6 +25,7 @@ dependencies = [
     "click>=8.3.3",
     "niquests>=2.28",
     "pyarrow>=17.0",
+    "zeroconf>=0.149.16,<0.150.0",
 ]
 [dependency-groups]
 dev = [
@@ -43,13 +44,39 @@ dev = [
 Homepage = "https://github.com/rhizomatics/signalk-cli"
 Repository = "https://github.com/rhizomatics/signalk-cli"
 
+[tool.bandit]
+exclude_dirs = ["tests"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+asyncio_mode = "auto"
+testpaths = [
+    "tests",
+]
+norecursedirs = [
+    ".git"
+]
+
 
 [tool.coverage.run]
 branch = true
 source = ["src"]
 
 [tool.mypy]
-mypy_path=["./src","./tests"]
+mypy_path=["./src"]
 
 [tool.uv]
 compile-bytecode = true

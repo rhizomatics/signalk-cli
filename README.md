@@ -1,6 +1,8 @@
 # SignalK CLI
 
-Query and explore SignalK APIs from the command line and export data as CSV or Apache Arrow Feather. Presently the [SignalK v2 History API](https://signalk.org/https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html) is supported.
+Query and explore SignalK APIs from the command line, and export data as CSV or Apache Arrow Feather. 
+
+Presently the [SignalK v2 History API](https://signalk.org/https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html) is supported.
 
 ## Installation
 
@@ -18,14 +20,20 @@ cd signalk-cli
 uv sync
 ```
 
-## Commands
+## Running
 
 Run via `python -m signalk_cli.history <command>`. 
-Set `SIGNALK_HOST` to avoid repeating `--host` on every call.
+
+## Determining SignalK host name
+
+If not host name set as an argument, the CLI will look for a `SIGNALK_HOST` environment variable, and failing that attempt to automatically discover
+the host using mDNS (aka Bonjour).
 
 ```bash
-export SIGNALK_HOST=10.36.10.21   # http:// is added automatically if omitted
+export SIGNALK_HOST=192.168.6.99   # http:// is added automatically if omitted
 ```
+
+## Help
 
 Run with no arguments to list available commands:
 
@@ -42,7 +50,8 @@ Commands:
   query           Query history and write results as CSV or Feather.
 ```
 
----
+## Commands
+
 
 ### `query`
 
@@ -77,6 +86,7 @@ python -m signalk_cli.history query [OPTIONS] PATH...
 | `--no-header` | — | Suppress the CSV header row |
 | `-o / --output FILE` | auto-named | Output file. Use `-` to write CSV to stdout. |
 | `--stdout` | — | Print CSV to stdout. If `--output` is also given, writes to both. Not supported with feather. |
+| `--bare` | — | Print CSV to stdout with **no informational messages** (server, provider, progress, row count). Ideal for piping to other tools. Implies `--stdout`. Not supported with feather. |
 
 Output files are auto-named `signalk-history-<server>-<timestamp>.<ext>` in the current directory.
 
@@ -149,6 +159,10 @@ python -m signalk_cli.historyquery --host 10.36.10.21 --duration PT1H \
 # Duration in seconds, suppress header, pipe to another tool
 python -m signalk_cli.history query --host 10.36.10.21 --duration 3600 --no-header --stdout \
     navigation.speedOverGround | cut -d, -f1,3
+
+# --bare: pure CSV output, no informational noise — pipe-friendly
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H --bare \
+    navigation.speedOverGround | awk -F, 'NR>1 {print $2, $3}'
 
 # Different context
 python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H -c vessels.urn:mrn:imo:mmsi:123456789 \
