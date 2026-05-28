@@ -1,6 +1,6 @@
 [project]
 name = "signalk-cli"
-version = "0.1.0"
+version = "1.0.0"
 description = "Query the SignalK v2 History API and export data as CSV or Apache Arrow Feather"
 readme = "README.md"
 requires-python = ">=3.13"
