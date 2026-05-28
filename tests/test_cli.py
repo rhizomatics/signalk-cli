@@ -176,6 +176,19 @@ def test_query_writes_file(runner, mocker, tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def test_list_paths_bare(runner, mocker, server_paths):
+    mocker.patch(
+        "signalk_cli.history.history_api.niquests.get",
+        return_value=make_response(server_paths),
+    )
+    result = runner.invoke(cli, ["list-paths", HOST, PROVIDER, DURATION, "--bare"])
+    assert result.exit_code == 0
+    for path in server_paths:
+        assert path in result.output
+    assert "Server:" not in result.output
+    assert "path(s)" not in result.output
+
+
 def test_list_paths(runner, mocker, server_paths):
     mocker.patch(
         "signalk_cli.history.history_api.niquests.get",
@@ -201,6 +214,22 @@ def test_list_paths_count(runner, mocker, server_paths):
 # ---------------------------------------------------------------------------
 
 
+def test_list_providers_bare(runner, mocker):
+    providers = {
+        "signalk-parquet": {"isDefault": True},
+        "influxdb": {"isDefault": False},
+    }
+    mocker.patch(
+        "signalk_cli.history.cli.niquests.get",
+        return_value=make_response(providers),
+    )
+    result = runner.invoke(cli, ["list-providers", HOST, "--bare"])
+    assert result.exit_code == 0
+    assert "signalk-parquet (default)" in result.output
+    assert "Server:" not in result.output
+    assert "provider(s)" not in result.output
+
+
 def test_list_providers(runner, mocker):
     providers = {
         "signalk-parquet": {"isDefault": True},
@@ -220,6 +249,20 @@ def test_list_providers(runner, mocker):
 # ---------------------------------------------------------------------------
 # list-contexts
 # ---------------------------------------------------------------------------
+
+
+def test_list_contexts_bare(runner, mocker):
+    contexts = ["vessels.self", "vessels.urn:mrn:imo:mmsi:123456789"]
+    mocker.patch(
+        "signalk_cli.history.cli.niquests.get",
+        return_value=make_response(contexts),
+    )
+    result = runner.invoke(cli, ["list-contexts", HOST, PROVIDER, DURATION, "--bare"])
+    assert result.exit_code == 0
+    for ctx in contexts:
+        assert ctx in result.output
+    assert "Server:" not in result.output
+    assert "context(s)" not in result.output
 
 
 def test_list_contexts(runner, mocker):

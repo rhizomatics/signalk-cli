@@ -104,6 +104,20 @@ def _time_options(f):
     return f
 
 
+def _bare_option(f):
+    return click.option(
+        "--bare",
+        is_flag=True,
+        help="Suppress all informational messages, outputting data only.",
+    )(f)
+
+
+def _stderr_ctx(bare: bool) -> contextlib.AbstractContextManager:
+    return (
+        contextlib.redirect_stderr(io.StringIO()) if bare else contextlib.nullcontext()
+    )
+
+
 def _build_time_params(from_: str | None, to: str | None, duration: str | None) -> dict:
     p: dict = {}
     if from_:
@@ -225,11 +239,7 @@ def cli():
     is_flag=True,
     help="Also print to stdout; when no --output given, stdout only (CSV only)",
 )
-@click.option(
-    "--bare",
-    is_flag=True,
-    help="Output CSV to stdout only, suppressing all informational messages. Implies --stdout.",
-)
+@_bare_option
 def query(
     paths,
     host,
@@ -268,10 +278,7 @@ def query(
     if bare and output is None:
         output = "-"
 
-    _stderr = (
-        contextlib.redirect_stderr(io.StringIO()) if bare else contextlib.nullcontext()
-    )
-    with _stderr:
+    with _stderr_ctx(bare):
         host = _resolve_host(host, no_cache)
         base_url = host.rstrip("/") + HISTORY_BASE
         provider = resolve_provider(host, base_url, provider, no_cache)
@@ -389,29 +396,33 @@ def query(
 @click.option(
     "--context", "-c", default="vessels.self", show_default=True, help="SignalK context"
 )
-def list_paths(host, from_, to, duration, provider, no_cache, context):
+@_bare_option
+def list_paths(host, from_, to, duration, provider, no_cache, context, bare):
     """List paths that have data for the given time range."""
-    host = _resolve_host(host, no_cache)
-    base_url = host.rstrip("/") + HISTORY_BASE
-    provider = resolve_provider(host, base_url, provider, no_cache)
-    time_params = apply_time_default(_build_time_params(from_, to, duration))
+    with _stderr_ctx(bare):
+        host = _resolve_host(host, no_cache)
+        base_url = host.rstrip("/") + HISTORY_BASE
+        provider = resolve_provider(host, base_url, provider, no_cache)
+        time_params = apply_time_default(_build_time_params(from_, to, duration))
 
-    click.echo(f"Server:   {host}", err=True)
-    click.echo(f"Provider: {provider or '(none)'}", err=True)
-    click.echo(f"From:     {time_params.get('from', '(server default)')}", err=True)
-    click.echo(f"To:       {time_params.get('to', '(server default)')}", err=True)
-    click.echo(f"Duration: {time_params.get('duration', '(not specified)')}", err=True)
+        click.echo(f"Server:   {host}", err=True)
+        click.echo(f"Provider: {provider or '(none)'}", err=True)
+        click.echo(f"From:     {time_params.get('from', '(server default)')}", err=True)
+        click.echo(f"To:       {time_params.get('to', '(server default)')}", err=True)
+        click.echo(
+            f"Duration: {time_params.get('duration', '(not specified)')}", err=True
+        )
 
-    try:
-        paths = fetch_server_paths(base_url, time_params, provider)
-    except niquests.RequestException as e:
-        click.echo(f"Error fetching paths: {api_error(e)}", err=True)
-        sys.exit(1)
+        try:
+            paths = fetch_server_paths(base_url, time_params, provider)
+        except niquests.RequestException as e:
+            click.echo(f"Error fetching paths: {api_error(e)}", err=True)
+            sys.exit(1)
 
-    for path in sorted(paths):
-        click.echo(path)
+        for path in sorted(paths):
+            click.echo(path)
 
-    click.echo(f"{len(paths)} path(s)", err=True)
+        click.echo(f"{len(paths)} path(s)", err=True)
 
 
 # ---------------------------------------------------------------------------
@@ -421,25 +432,27 @@ def list_paths(host, from_, to, duration, provider, no_cache, context):
 
 @cli.command("list-providers")
 @_host_option
-def list_providers(host):
+@_bare_option
+def list_providers(host, bare):
     """List registered history providers."""
-    host = _resolve_host(host)
-    base_url = host.rstrip("/") + HISTORY_BASE
-    click.echo(f"Server: {host}", err=True)
+    with _stderr_ctx(bare):
+        host = _resolve_host(host)
+        base_url = host.rstrip("/") + HISTORY_BASE
+        click.echo(f"Server: {host}", err=True)
 
-    try:
-        resp = niquests.get(f"{base_url}/_providers", timeout=10)
-        resp.raise_for_status()
-    except niquests.RequestException as e:
-        click.echo(f"Error fetching providers: {api_error(e)}", err=True)
-        sys.exit(1)
+        try:
+            resp = niquests.get(f"{base_url}/_providers", timeout=10)
+            resp.raise_for_status()
+        except niquests.RequestException as e:
+            click.echo(f"Error fetching providers: {api_error(e)}", err=True)
+            sys.exit(1)
 
-    providers: dict = resp.json()
-    for pid, info in sorted(providers.items()):
-        marker = " (default)" if info.get("isDefault") else ""
-        click.echo(f"{pid}{marker}")
+        providers: dict = resp.json()
+        for pid, info in sorted(providers.items()):
+            marker = " (default)" if info.get("isDefault") else ""
+            click.echo(f"{pid}{marker}")
 
-    click.echo(f"{len(providers)} provider(s)", err=True)
+        click.echo(f"{len(providers)} provider(s)", err=True)
 
 
 # ---------------------------------------------------------------------------
@@ -451,32 +464,36 @@ def list_providers(host):
 @_host_option
 @_time_options
 @_provider_options
-def list_contexts(host, from_, to, duration, provider, no_cache):
+@_bare_option
+def list_contexts(host, from_, to, duration, provider, no_cache, bare):
     """List contexts that have historical data for the given time range."""
-    host = _resolve_host(host, no_cache)
-    base_url = host.rstrip("/") + HISTORY_BASE
-    provider = resolve_provider(host, base_url, provider, no_cache)
-    time_params = apply_time_default(_build_time_params(from_, to, duration))
+    with _stderr_ctx(bare):
+        host = _resolve_host(host, no_cache)
+        base_url = host.rstrip("/") + HISTORY_BASE
+        provider = resolve_provider(host, base_url, provider, no_cache)
+        time_params = apply_time_default(_build_time_params(from_, to, duration))
 
-    click.echo(f"Server:   {host}", err=True)
-    click.echo(f"Provider: {provider or '(none)'}", err=True)
-    click.echo(f"From:     {time_params.get('from', '(server default)')}", err=True)
-    click.echo(f"To:       {time_params.get('to', '(server default)')}", err=True)
-    click.echo(f"Duration: {time_params.get('duration', '(not specified)')}", err=True)
+        click.echo(f"Server:   {host}", err=True)
+        click.echo(f"Provider: {provider or '(none)'}", err=True)
+        click.echo(f"From:     {time_params.get('from', '(server default)')}", err=True)
+        click.echo(f"To:       {time_params.get('to', '(server default)')}", err=True)
+        click.echo(
+            f"Duration: {time_params.get('duration', '(not specified)')}", err=True
+        )
 
-    params = {**time_params}
-    if provider:
-        params["provider"] = provider
+        params = {**time_params}
+        if provider:
+            params["provider"] = provider
 
-    try:
-        resp = niquests.get(f"{base_url}/contexts", params=params, timeout=30)
-        resp.raise_for_status()
-    except niquests.RequestException as e:
-        click.echo(f"Error fetching contexts: {api_error(e)}", err=True)
-        sys.exit(1)
+        try:
+            resp = niquests.get(f"{base_url}/contexts", params=params, timeout=30)
+            resp.raise_for_status()
+        except niquests.RequestException as e:
+            click.echo(f"Error fetching contexts: {api_error(e)}", err=True)
+            sys.exit(1)
 
-    contexts: list = resp.json()
-    for ctx in sorted(contexts):
-        click.echo(ctx)
+        contexts: list = resp.json()
+        for ctx in sorted(contexts):
+            click.echo(ctx)
 
-    click.echo(f"{len(contexts)} context(s)", err=True)
+        click.echo(f"{len(contexts)} context(s)", err=True)

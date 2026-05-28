@@ -179,7 +179,7 @@ List all SignalK paths that have recorded data in a given time range.
 python -m signalk_cli.history list-paths [OPTIONS]
 ```
 
-Outputs one path per line to stdout. Defaults to the last hour if no time range is given. Accepts the same `--from`/`--to`/`--duration`, `--provider`/`--no-cache`, and `-c/--context` options as `query`.
+Outputs one path per line to stdout. Defaults to the last hour if no time range is given. Accepts the same `--from`/`--to`/`--duration`, `--provider`/`--no-cache`, `-c/--context`, and `--bare` options as `query`.
 
 ```bash
 # Paths recorded in the last hour
@@ -197,7 +197,7 @@ python -m signalk_cli.history list-paths --host 10.36.10.21 --duration PT24H | g
 
 ### `list-providers`
 
-List all registered history provider plugins and identify the default.
+List all registered history provider plugins and identify the default. Supports `--bare` to suppress the "Server:" and provider-count lines.
 
 ```
 python -m signalk_cli.history list-providers --host 10.36.10.21
