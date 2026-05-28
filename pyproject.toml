@@ -43,8 +43,6 @@ dev = [
 Homepage = "https://github.com/rhizomatics/signalk-cli"
 Repository = "https://github.com/rhizomatics/signalk-cli"
 
-[project.scripts]
-history = "signalk_cli.history:cli"
 
 [tool.coverage.run]
 branch = true
@@ -54,17 +52,19 @@ source = ["src"]
 mypy_path=["./src","./tests"]
 
 [tool.uv]
-package = false
-no-build = false
 compile-bytecode = true
 managed = true
 exclude-newer = "5 days"
 add-bounds = "major"
 
 [build-system]
-requires = ["uv_build>=0.9.18"]
+requires = ["uv_build>=0.11.13,<0.12.0"]
 build-backend = "uv_build"
+
 
 [tool.uv.build-backend]
 module-root = "src"
 module-name = "signalk_cli"
+
+[project.scripts]
+myproj = "signalk_cli.history:cli"

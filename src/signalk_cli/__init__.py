@@ -1,1 +1,1 @@
-"""signalk — Python clients and CLI for SignalK APIs."""
+"""signalk_cli — Python clients and CLI for SignalK APIs."""

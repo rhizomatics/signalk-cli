@@ -10,7 +10,7 @@ import niquests
 import logging
 
 HISTORY_BASE = "/signalk/v2/api/history"
-CACHE_DIR = Path.home() / ".cache" / "signalk-history-cli"
+CACHE_DIR = Path.home() / ".cache" / "signalk-cli"
 
 
 def normalise_host(host: str) -> str:

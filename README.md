@@ -13,8 +13,8 @@ Query and explore SignalK APIs from the command line and export data as CSV or A
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone <repo>
-cd signalk-history-cli
+git clone https://github.com/rhizomatics/signalk-cli
+cd signalk-cli
 uv sync
 ```
 
@@ -197,7 +197,7 @@ signalk-parquet
 2 provider(s)
 ```
 
-The default provider is used automatically when `--provider` is not specified on other commands. It is fetched once and cached in `~/.cache/signalk-history-cli/`.
+The default provider is used automatically when `--provider` is not specified on other commands. It is fetched once and cached in `~/.cache/signalk-cli/`.
 
 ---
 
