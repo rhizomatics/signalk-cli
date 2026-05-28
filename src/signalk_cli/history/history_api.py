@@ -278,7 +278,13 @@ def expand_paths(
     click.echo("Resolving patterns against server paths...", err=True)
     available = fetch_server_paths(base_url, apply_time_default(time_params), provider)
 
+    _GLOB_ONLY_RE = re.compile(
+        r"^[^.+(){}|^$\\]+$"
+    )  # only glob chars, no regex-specific
+
     def _compile(pattern: str) -> re.Pattern:
+        if _GLOB_ONLY_RE.match(pattern):
+            return re.compile(fnmatch.translate(pattern))
         try:
             return re.compile(pattern)
         except re.PatternError:

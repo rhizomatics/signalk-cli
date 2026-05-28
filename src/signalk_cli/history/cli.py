@@ -27,7 +27,10 @@ from .history_api import (
     save_cached_host,
 )
 from .output import (
+    CARDINALITY_COLUMNS,
     FEATHER_EXTENSIONS,
+    _POSITION_RE,
+    compute_cardinality,
     write_csv,
     write_csv_wide,
     write_feather,
@@ -180,8 +183,16 @@ def _build_path_specs(
     if has_inline:
         return ",".join(paths), False
 
-    # Default: wide mode — fetch min, max and average for each path
-    specs = [f"{p}:{m}" for p in paths for m in ("min", "average", "max")]
+    # Default: wide mode.  Array-valued paths (e.g. navigation.position) don't
+    # support min/average/max aggregation, so request a single passthrough method
+    # instead; the output layer expands the array into named columns.
+    specs = []
+    for p in paths:
+        if _POSITION_RE.fullmatch(p):
+            specs.append(f"{p}:mid")
+        else:
+            for m in ("min", "average", "max"):
+                specs.append(f"{p}:{m}")
     return ",".join(specs), True
 
 
@@ -480,6 +491,126 @@ def query(
                 f"{row_count} rows, {len(unique_paths)} unique path(s): {', '.join(sorted(unique_paths))}",
                 err=True,
             )
+
+
+# ---------------------------------------------------------------------------
+# cardinality
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.argument("paths", nargs=-1, required=False, metavar="PATH...")
+@_host_option
+@_time_options
+@click.option(
+    "--resolution",
+    metavar="RESOLUTION",
+    help="Sample window: integer seconds or time expression (1s, 1m, 1h, 1d)",
+)
+@click.option(
+    "--context", "-c", default="vessels.self", show_default=True, help="SignalK context"
+)
+@_provider_options
+@click.option(
+    "--format",
+    "fmt",
+    metavar="[csv|json]",
+    default="csv",
+    callback=_list_fmt_callback,
+    help="Output format: csv or json",
+)
+@click.option("--no-header", is_flag=True, help="Suppress header row (CSV only)")
+@_bare_option
+def cardinality(
+    paths,
+    host,
+    from_,
+    to,
+    duration,
+    resolution,
+    context,
+    provider,
+    no_cache,
+    fmt,
+    no_header,
+    bare,
+):
+    """Compute per-path value statistics for the given time range.
+
+    Outputs a table of: path, distinct_values, min, max, average,
+    distinct_values_2_decimal_places, nulls.
+
+    For non-scalar values (e.g. navigation.position) min/max/average and
+    distinct_values_2_decimal_places are left blank.
+
+    \b
+    Examples:
+      signalk_cli.history cardinality --host 10.36.10.21 --duration PT1H navigation.speedOverGround
+      signalk_cli.history cardinality --host 10.36.10.21 --duration PT1H '*'
+    """
+    with _stderr_ctx(bare):
+        host = _resolve_host(host, no_cache)
+        base_url = host.rstrip("/") + HISTORY_BASE
+        provider = resolve_provider(host, base_url, provider, no_cache)
+
+        from_, to, duration = normalise_duration(duration, from_, to)
+        time_params = apply_time_default(_build_time_params(from_, to, duration))
+
+        click.echo(f"Server:      {host}", err=True)
+        click.echo(f"Provider:    {provider or '(none)'}", err=True)
+        click.echo(f"Context:     {context}", err=True)
+        click.echo(
+            f"From:        {time_params.get('from', '(server default)')}", err=True
+        )
+        click.echo(
+            f"To:          {time_params.get('to', '(server default)')}", err=True
+        )
+        click.echo(
+            f"Duration:    {time_params.get('duration', '(not specified)')}", err=True
+        )
+        click.echo(f"Resolution:  {resolution or '(server default)'}", err=True)
+
+        try:
+            resolved = expand_paths(
+                list(paths) or ["*"], base_url, time_params, provider
+            )
+        except niquests.RequestException as e:
+            click.echo(f"Error resolving paths: {api_error(e)}", err=True)
+            sys.exit(1)
+
+        if not resolved:
+            click.echo("No paths matched — nothing to query.", err=True)
+            sys.exit(1)
+
+        params: dict = {
+            **time_params,
+            "paths": ",".join(resolved),
+            "context": context,
+        }
+        if resolution:
+            params["resolution"] = resolution
+        if provider:
+            params["provider"] = provider
+
+        try:
+            resp = niquests.get(f"{base_url}/values", params=params, timeout=60)
+            resp.raise_for_status()
+        except niquests.RequestException as e:
+            click.echo(f"Error fetching history: {api_error(e)}", err=True)
+            sys.exit(1)
+
+        stat_rows = compute_cardinality(resp.json())
+
+        if fmt == "json":
+            click.echo(json.dumps(stat_rows, indent=2))
+        else:
+            writer = csv.writer(sys.stdout)
+            if not no_header:
+                writer.writerow(CARDINALITY_COLUMNS)
+            for row in stat_rows:
+                writer.writerow([row[col] for col in CARDINALITY_COLUMNS])
+
+        click.echo(f"{len(stat_rows)} path(s)", err=True)
 
 
 # ---------------------------------------------------------------------------

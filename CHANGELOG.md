@@ -1,3 +1,6 @@
+# v1.2.0
+- Improve handling of non-scalar values, such as `navigation.position`
+- Add a `cardinality` report to analyze paths for number of unique values, nulls, mins, maxes etc
 # v1.1.0
 - pyArrow is now an optional dependency
 - Can now run using `uv run --with` form

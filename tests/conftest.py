@@ -30,6 +30,45 @@ NARROW_RESULT = {
     ],
 }
 
+CARDINALITY_NARROW_RESULT = {
+    "values": [{"path": "navigation.speedOverGround"}],
+    "data": [
+        ["2026-05-27T10:00:00Z", 1.5],
+        ["2026-05-27T10:01:00Z", 2.0],
+        ["2026-05-27T10:02:00Z", 1.5],
+        ["2026-05-27T10:03:00Z", 0.0],
+        ["2026-05-27T10:04:00Z", None],
+    ],
+}
+
+CARDINALITY_POSITION_RESULT = {
+    "values": [{"path": "navigation.position"}],
+    "data": [
+        ["2026-05-27T10:00:00Z", [51.5, -0.1]],
+        ["2026-05-27T10:01:00Z", [51.6, -0.2]],
+        ["2026-05-27T10:02:00Z", None],
+    ],
+}
+
+POSITION_WIDE_RESULT = {
+    "values": [
+        {"path": "navigation.position", "method": "mid"},
+    ],
+    "data": [
+        ["2026-05-27T10:00:00Z", [51.5, -0.1]],
+        ["2026-05-27T10:01:00Z", [51.6, -0.2]],
+    ],
+}
+
+GENERIC_ARRAY_WIDE_RESULT = {
+    "values": [
+        {"path": "navigation.gnss.satellites", "method": "mid"},
+    ],
+    "data": [
+        ["2026-05-27T10:00:00Z", [10, 20, 30]],
+    ],
+}
+
 MULTI_PATH_WIDE_RESULT = {
     "values": [
         {"path": "navigation.speedOverGround", "method": "min"},
@@ -45,7 +84,7 @@ MULTI_PATH_WIDE_RESULT = {
 }
 
 
-def make_response(json_data, status_code=200):
+def make_response(json_data: object, status_code: int = 200) -> MagicMock:
     """Build a minimal mock niquests response."""
     resp = MagicMock()
     resp.status_code = status_code
@@ -54,10 +93,10 @@ def make_response(json_data, status_code=200):
     return resp
 
 
-def url_dispatcher(routes: dict):
+def url_dispatcher(routes: dict[str, object]):
     """Return a side_effect function that routes by URL substring."""
 
-    def _dispatch(url, **kwargs):
+    def _dispatch(url: str, **kwargs: object) -> MagicMock:
         for fragment, payload in routes.items():
             if fragment in url:
                 return make_response(payload)
@@ -67,7 +106,7 @@ def url_dispatcher(routes: dict):
 
 
 @pytest.fixture
-def server_paths():
+def server_paths() -> list[str]:
     return [
         "navigation.speedOverGround",
         "navigation.courseOverGroundTrue",

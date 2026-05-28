@@ -45,7 +45,7 @@ the host using mDNS (aka Bonjour) and locally cached (see [Default Caching](#def
 export SIGNALK_HOST=192.168.6.99   # http:// is added automatically if omitted
 ```
 
-## Help
+## Built-in Help
 
 Run with no arguments to list available commands:
 
@@ -56,6 +56,7 @@ Usage: signalk_cli.history [OPTIONS] COMMAND [ARGS]...
   SignalK v2 history CLI.
 
 Commands:
+  cardinality     Compute per-path value statistics for the given time range.
   list-contexts   List contexts that have historical data for the given time range.
   list-paths      List paths that have data for the given time range.
   list-providers  List registered history providers.
@@ -124,10 +125,23 @@ Integer seconds (`3600`) are passed through unchanged.
 
 #### Output columns
 
-**Wide mode** (default — no `--aggregation` and no inline specs): fetches `min`, `average`, and `max` for each path and writes them as separate columns:
+**Wide mode** (default — no `--aggregation` and no inline specs): fetches `min`, `average`, and `max` for each scalar path and writes them as separate columns:
 
 ```
 timestamp, path, min_value, avg_value, max_value
+```
+
+**Array-valued paths in wide mode**: paths whose values are arrays (non-scalar) cannot be meaningfully aggregated with min/max/average. They are requested with a single passthrough method instead and the array elements are expanded into named columns. The column names depend on the path:
+
+| Path pattern | Array length | Columns |
+|---|---|---|
+| `navigation.*.position` or `navigation.position` | 2 | `longitude`, `latitude` |
+| any other array path | N | `value_0`, `value_1`, …, `value_N-1` |
+
+Example for `navigation.position`:
+
+```
+timestamp, path, latitude, longitude
 ```
 
 **Narrow mode** (explicit `--aggregation` or inline path specs): single value column:
@@ -212,6 +226,50 @@ python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H --bare \
 # Different context
 python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
     -c vessels.urn:mrn:imo:mmsi:123456789 navigation.speedOverGround
+```
+
+---
+
+### `cardinality`
+
+Fetch raw values for one or more paths and compute per-path statistics. Useful for exploring a dataset before querying it.
+
+```
+python -m signalk_cli.history cardinality [OPTIONS] PATH...
+```
+
+PATH arguments follow the same rules as `query` (literal paths, regex/glob patterns, inline specs).
+
+#### Output columns
+
+| Column | Description |
+|---|---|
+| `path` | SignalK path |
+| `distinct_values` | Count of unique values (by string representation) |
+| `min` | Minimum value (scalar numeric only; blank otherwise) |
+| `max` | Maximum value (scalar numeric only; blank otherwise) |
+| `average` | Mean value (scalar numeric only; blank otherwise) |
+| `distinct_values_2_decimal_places` | Distinct count after rounding to 2 dp (scalar only; blank otherwise) |
+| `nulls` | Count of null/missing values |
+
+For non-scalar paths (e.g. `navigation.position` which returns a lat/lon pair), `min`, `max`, `average`, and `distinct_values_2_decimal_places` are left blank; `distinct_values` still counts unique array representations.
+
+#### Options
+
+Accepts the same `--host`, `--from`/`--to`/`--duration`, `--resolution`, `--context`, `--provider`/`--no-cache`, `--format [csv|json]`, `--no-header`, and `--bare` options as `query`.
+
+```bash
+# Statistics for speed over the last hour
+python -m signalk_cli.history cardinality --host 10.36.10.21 --duration PT1H \
+    navigation.speedOverGround
+
+# All navigation paths, last 24 hours
+python -m signalk_cli.history cardinality --host 10.36.10.21 --duration P1D \
+    'navigation\..*'
+
+# JSON output
+python -m signalk_cli.history cardinality --host 10.36.10.21 --duration PT1H \
+    --format json navigation.speedOverGround navigation.position
 ```
 
 ---
