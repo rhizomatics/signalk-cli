@@ -97,8 +97,8 @@ python -m signalk_cli.history query [OPTIONS] PATH...
 | `--format [csv\|feather\|json\|raw]` | from extension, else csv | Output format. Auto-detected from `.feather`/`.arrow`/`.fea` and `.json` extensions. `feather` requires `pip install 'signalk-cli[feather]'`. |
 | `--no-header` | — | Suppress the CSV header row |
 | `-o / --output FILE` | auto-named | Output file. Use `-` to write CSV or JSON to stdout. |
-| `--stdout` | — | Print CSV or JSON to stdout. If `--output` is also given, writes to both. Not supported with feather. |
 | `--bare` | — | Print to stdout with **no informational messages** (server, provider, progress, row count). Ideal for piping to other tools. Implies `--stdout`. Not supported with feather. |
+| `--pretty` | - | Pretty print JSON output (raw response or simplified json), ignored for other formats |
 
 Output files are auto-named `signalk-history-<server>-<timestamp>.<ext>` in the current directory.
 

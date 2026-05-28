@@ -90,7 +90,7 @@ LITERAL_PATH = "sog"
 
 def test_query_wide_mode_csv_stdout(runner, mocker):
     _mock_values(mocker, WIDE_RESULT)
-    result = runner.invoke(cli, ["query", *BASE_ARGS, "--stdout", LITERAL_PATH])
+    result = runner.invoke(cli, ["query", *BASE_ARGS, LITERAL_PATH])
     assert result.exit_code == 0
     assert "min_value,avg_value,max_value" in result.output
     assert "2026-05-27T10:00:00Z" in result.output
@@ -98,9 +98,7 @@ def test_query_wide_mode_csv_stdout(runner, mocker):
 
 def test_query_narrow_mode_csv_stdout(runner, mocker):
     _mock_values(mocker, NARROW_RESULT)
-    result = runner.invoke(
-        cli, ["query", *BASE_ARGS, "--agg=average", "--stdout", LITERAL_PATH]
-    )
+    result = runner.invoke(cli, ["query", *BASE_ARGS, "--agg=average", LITERAL_PATH])
     assert result.exit_code == 0
     assert "timestamp,path,value" in result.output
 
@@ -109,7 +107,7 @@ def test_query_no_header(runner, mocker):
     _mock_values(mocker, NARROW_RESULT)
     result = runner.invoke(
         cli,
-        ["query", *BASE_ARGS, "--agg=average", "--no-header", "--stdout", LITERAL_PATH],
+        ["query", *BASE_ARGS, "--agg=average", "--no-header", LITERAL_PATH],
     )
     assert result.exit_code == 0
     assert "timestamp" not in result.output
@@ -119,12 +117,10 @@ def test_query_feather_stdout_error(runner, mocker):
     mocker.patch("signalk_cli.history.cli.niquests.get", return_value=make_response({}))
     result = runner.invoke(
         cli,
-        ["query", *BASE_ARGS, "--format=feather", "--stdout", "nav.sog"],
+        ["query", *BASE_ARGS, "--format=feather", "nav.sog"],
     )
     assert result.exit_code != 0
-    assert "not supported" in result.output.lower() or "not supported" in (
-        result.exception and str(result.exception) or ""
-    )
+    assert "feather" in result.output.lower()
 
 
 def test_query_http_error(runner, mocker):
