@@ -12,7 +12,7 @@ from .history_api import (
     resolve_provider,
     save_cached_provider,
 )
-from .output import extract_rows, write_csv, write_feather
+from .output import extract_rows, write_csv, write_feather, write_json, write_json_wide
 
 __all__ = [
     "HISTORY_BASE",
@@ -28,4 +28,6 @@ __all__ = [
     "save_cached_provider",
     "write_csv",
     "write_feather",
+    "write_json",
+    "write_json_wide",
 ]

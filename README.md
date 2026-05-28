@@ -1,14 +1,18 @@
 # SignalK CLI
 
-Query and explore SignalK APIs from the command line, and export data as CSV or Apache Arrow Feather. 
+Query and explore SignalK APIs from the command line, and export data as CSV, Apache Arrow Feather, or JSON.
 
-Presently the [SignalK v2 History API](https://signalk.org/https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html) is supported.
+APIs supported:
+
+* [SignalK v2 History API](https://signalk.org/https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html)
 
 ## Installation
 
 ### PyPi
 
 ```pip install signalk-cli``` or ```uv pip install signalk-cli```
+
+For Apache Arrow Feather export, use the optional dependency: ```pip install 'signalk-cli[feather]'```
 
 ### Local Copy
 
@@ -20,13 +24,21 @@ cd signalk-cli
 uv sync
 ```
 
+## Temporary Installation
+
+Use `uv` to run without installing the module permanently, for example:
+
+```bash
+uv run --with signalk-cli signalk_cli.history list-providers
+```
+
 ## Running
 
 Run via `python -m signalk_cli.history <command>`. 
 
 ## Determining SignalK host name
 
-If not host name set as an argument, the CLI will look for a `SIGNALK_HOST` environment variable, and failing that attempt to automatically discover
+If no host name is set as an argument, the CLI will look for a `SIGNALK_HOST` environment variable, and failing that attempt to automatically discover
 the host using mDNS (aka Bonjour) and locally cached (see [Default Caching](#default-caching)).
 
 ```bash
@@ -39,7 +51,7 @@ Run with no arguments to list available commands:
 
 ```
 $ python -m signalk_cli.history
-Usage: signak_cli.history [OPTIONS] COMMAND [ARGS]...
+Usage: signalk_cli.history [OPTIONS] COMMAND [ARGS]...
 
   SignalK v2 history CLI.
 
@@ -47,7 +59,7 @@ Commands:
   list-contexts   List contexts that have historical data for the given time range.
   list-paths      List paths that have data for the given time range.
   list-providers  List registered history providers.
-  query           Query history and write results as CSV or Feather.
+  query           Query history and write results as CSV, Feather, or JSON.
 ```
 
 ## Commands
@@ -74,23 +86,33 @@ python -m signalk_cli.history query [OPTIONS] PATH...
 | `--host` | `$SIGNALK_HOST` | Server base URL. `http://` added if scheme omitted. |
 | `--from DATETIME` | — | Start of range (ISO 8601, e.g. `2026-05-26T00:00:00Z`) |
 | `--to DATETIME` | now | End of range (ISO 8601) |
-| `--duration DURATION` | — | Duration as seconds (`3600`) or ISO 8601 (`PT1H`, `PT15M`). Combined with `--from` or `--to`, or alone for a window ending now. |
+| `--duration DURATION` | — | Duration as seconds (`3600`) or ISO 8601 time only duration (`PT1H`, `PT15M`). Combined with `--from` or `--to`, or alone for a window ending now. |
 | `--resolution RESOLUTION` | server default | Sample window size: seconds or time expression (`1s`, `1m`, `1h`, `1d`). |
 | `-c, --context TEXT` | `vessels.self` | SignalK context |
-| `--provider TEXT` | fetched & cached | History provider plugin id |
+| `--provider TEXT` | fetched & cached | History provider plugin name, for example `signalk-parquet` |
 | `--no-cache` | — | Ignore the cached default provider |
 | `--aggregation / --agg` | — | Aggregation method: `average`, `min`, `max`, `first`, `last`, `mid`, `middle_index`, `sma`, `ema`. Omit for wide mode (see below). |
 | `--samples N` | server default | Sample count for `--agg sma` |
 | `--alpha FLOAT` | server default | Alpha (0–1) for `--agg ema` |
-| `--format [csv\|feather]` | from extension, else csv | Output format. Auto-detected from `.feather`, `.arrow`, `.fea` extensions. |
+| `--format [csv\|feather\|json\|raw]` | from extension, else csv | Output format. Auto-detected from `.feather`/`.arrow`/`.fea` and `.json` extensions. `feather` requires `pip install 'signalk-cli[feather]'`. |
 | `--no-header` | — | Suppress the CSV header row |
-| `-o / --output FILE` | auto-named | Output file. Use `-` to write CSV to stdout. |
-| `--stdout` | — | Print CSV to stdout. If `--output` is also given, writes to both. Not supported with feather. |
-| `--bare` | — | Print CSV to stdout with **no informational messages** (server, provider, progress, row count). Ideal for piping to other tools. Implies `--stdout`. Not supported with feather. |
+| `-o / --output FILE` | auto-named | Output file. Use `-` to write CSV or JSON to stdout. |
+| `--stdout` | — | Print CSV or JSON to stdout. If `--output` is also given, writes to both. Not supported with feather. |
+| `--bare` | — | Print to stdout with **no informational messages** (server, provider, progress, row count). Ideal for piping to other tools. Implies `--stdout`. Not supported with feather. |
 
 Output files are auto-named `signalk-history-<server>-<timestamp>.<ext>` in the current directory.
 
 If no time range is given, the tool defaults to the hour ending now.
+
+#### Output formats
+
+**csv** (default): tabular output as comma-separated values.
+
+**feather**: Apache Arrow Feather binary format, readable with pandas, Polars, R, pyarrow, etc. Requires `pip install 'signalk-cli[feather]'`. Cannot be written to stdout.
+
+**json**: API response re-serialized by Python. Extension `.json` auto-selects this format.
+
+**raw**: exact API response body as received from the server — no Python JSON parse/re-serialize.
 
 #### Output columns
 
@@ -107,8 +129,6 @@ timestamp, path, value
 ```
 
 Structured values (positions, arrays) are JSON-encoded in the value column.
-
-Feather output produces the same columns as Apache Arrow Feather, readable with pandas, Polars, R, pyarrow, etc.
 
 #### Examples
 
@@ -152,8 +172,16 @@ python -m signalk_cli.history query --host 10.36.10.21 --duration PT30M --format
 python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
     -o out.feather navigation.speedOverGround
 
+# Exact API response body to stdout (no informational noise)
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H --format raw --bare \
+    navigation.speedOverGround
+
+# Extension auto-selects JSON format
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
+    -o out.json navigation.speedOverGround
+
 # Write to both a file and stdout
-python -m signalk_cli.historyquery --host 10.36.10.21 --duration PT1H \
+python -m signalk_cli.history query --host 10.36.10.21 --duration PT1H \
     --output out.csv --stdout navigation.speedOverGround
 
 # Duration in seconds, suppress header, pipe to another tool
@@ -179,18 +207,27 @@ List all SignalK paths that have recorded data in a given time range.
 python -m signalk_cli.history list-paths [OPTIONS]
 ```
 
-Outputs one path per line to stdout. Defaults to the last hour if no time range is given. Accepts the same `--from`/`--to`/`--duration`, `--provider`/`--no-cache`, `-c/--context`, and `--bare` options as `query`.
+Outputs one path per line to stdout by default. Defaults to the last hour if no time range is given. Accepts the same `--from`/`--to`/`--duration`, `--provider`/`--no-cache`, `-c/--context`, and `--bare` options as `query`.
+
+#### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--format [csv\|json\|raw]` | `csv` | `csv`: one item per line. `json`: re-serialized JSON. `raw`: exact API response body. |
 
 ```bash
 # Paths recorded in the last hour
 python -m signalk_cli.history list-paths --host 10.36.10.21
 
 # Paths available on a specific day
-python -m signalk_cli.historylist-paths --host 10.36.10.21 \
+python -m signalk_cli.history list-paths --host 10.36.10.21 \
     --from 2026-05-26T00:00:00Z --to 2026-05-27T00:00:00Z
 
 # Pipe into grep
 python -m signalk_cli.history list-paths --host 10.36.10.21 --duration PT24H | grep navigation
+
+# Exact API response body, no informational noise
+python -m signalk_cli.history list-paths --host 10.36.10.21 --format raw --bare
 ```
 
 ---
@@ -213,6 +250,17 @@ signalk-parquet
 
 The default provider is used automatically when `--provider` is not specified on other commands. It is fetched once and cached in `~/.cache/signalk-cli/`.
 
+#### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--format [csv\|json\|raw]` | `csv` | `csv`: one item per line. `json`: re-serialized JSON. `raw`: exact API response body. |
+
+```bash
+# Exact API response body, no informational noise
+python -m signalk_cli.history list-providers --host 10.36.10.21 --format raw --bare
+```
+
 ---
 
 ### `list-contexts`
@@ -225,11 +273,20 @@ python -m signalk_cli.history list-contexts [OPTIONS]
 
 Defaults to the last hour if no time range is given.
 
+#### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--format [csv\|json\|raw]` | `csv` | `csv`: one item per line. `json`: re-serialized JSON. `raw`: exact API response body. |
+
 ```bash
 python -m signalk_cli.history list-contexts --host 10.36.10.21
 
 python -m signalk_cli.history list-contexts --host 10.36.10.21 \
     --from 2026-05-26T00:00:00Z --to 2026-05-27T00:00:00Z
+
+# Exact API response body, no informational noise
+python -m signalk_cli.history list-contexts --host 10.36.10.21 --format raw --bare
 ```
 
 ---

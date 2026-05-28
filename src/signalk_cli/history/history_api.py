@@ -75,6 +75,72 @@ def normalise_host(host: str) -> str:
     return host
 
 
+_DURATION_RE = re.compile(
+    r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?"
+    r"(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$"
+)
+
+
+def _has_date_parts(duration: str) -> bool:
+    m = _DURATION_RE.match(duration)
+    return bool(m and any(m.group(i) for i in (1, 2, 3, 4)))
+
+
+def _duration_to_timedelta(duration: str) -> timedelta:
+    m = _DURATION_RE.match(duration)
+    if not m:
+        raise ValueError(f"Cannot parse duration: {duration!r}")
+    years, months, weeks, days, hours, minutes = (
+        int(m.group(i) or 0) for i in range(1, 7)
+    )
+    secs = float(m.group(7) or 0)
+    return timedelta(
+        days=years * 365 + months * 30 + weeks * 7 + days,
+        hours=hours,
+        minutes=minutes,
+        seconds=secs,
+    )
+
+
+def normalise_duration(
+    duration: str | None, from_: str | None, to: str | None
+) -> tuple[str | None, str | None, str | None]:
+    """Convert date-component durations to explicit from/to timestamps.
+
+    SignalK only accepts PT-prefix (time-only) durations. Durations containing
+    Y/M/W/D are expanded to from/to pairs:
+      from + duration  →  to = from + duration
+      to + duration    →  from = to - duration
+      duration alone   →  from = now - duration, to = now
+
+    Returns (from_, to, duration_or_None).
+    """
+    if not duration:
+        return from_, to, duration
+    try:
+        int(duration)
+        return from_, to, duration  # integer seconds, pass through
+    except ValueError:
+        pass
+    if not _has_date_parts(duration):
+        return from_, to, duration  # PT-only, pass through
+
+    delta = _duration_to_timedelta(duration)
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    now = datetime.now(timezone.utc)
+
+    if from_ is not None and to is not None:
+        return from_, to, None
+    elif from_ is not None:
+        from_dt = datetime.fromisoformat(from_.replace("Z", "+00:00"))
+        return from_, (from_dt + delta).strftime(fmt), None
+    elif to is not None:
+        to_dt = datetime.fromisoformat(to.replace("Z", "+00:00"))
+        return (to_dt - delta).strftime(fmt), to, None
+    else:
+        return (now - delta).strftime(fmt), now.strftime(fmt), None
+
+
 def apply_time_default(time_params: dict) -> dict:
     """If neither 'from' nor 'duration' is set, default to the hour ending at 'to' (or now)."""
     if "from" in time_params or "duration" in time_params:

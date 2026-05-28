@@ -225,7 +225,8 @@ def test_list_providers_bare(runner, mocker):
     )
     result = runner.invoke(cli, ["list-providers", HOST, "--bare"])
     assert result.exit_code == 0
-    assert "signalk-parquet (default)" in result.output
+    assert "provider,isDefault" in result.output
+    assert "signalk-parquet,True" in result.output
     assert "Server:" not in result.output
     assert "provider(s)" not in result.output
 
@@ -241,8 +242,9 @@ def test_list_providers(runner, mocker):
     )
     result = runner.invoke(cli, ["list-providers", HOST])
     assert result.exit_code == 0
-    assert "signalk-parquet (default)" in result.output
-    assert "influxdb" in result.output
+    assert "provider,isDefault" in result.output
+    assert "signalk-parquet,True" in result.output
+    assert "influxdb,False" in result.output
     assert "2 provider(s)" in result.output
 
 

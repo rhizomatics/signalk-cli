@@ -5,9 +5,6 @@ import json
 import sys
 from typing import IO, cast
 
-import pyarrow as pa
-import pyarrow.feather as feather
-
 FEATHER_EXTENSIONS = {".feather", ".arrow", ".fea"}
 
 
@@ -72,6 +69,13 @@ def write_csv(result: dict, sink, no_header: bool) -> tuple[int, set[str]]:
 
 def write_feather(result: dict, output: str) -> tuple[int, set[str]]:
     """Write result as Feather (timestamp, path, value). Returns (row_count, unique_paths)."""
+    try:
+        import pyarrow as pa
+        import pyarrow.feather as feather
+    except ImportError:
+        raise ImportError(
+            "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"
+        ) from None
     timestamps, paths, values, unique_paths = extract_rows(result)
     table = pa.table(
         {
@@ -154,6 +158,13 @@ def write_csv_wide(result: dict, sink, no_header: bool) -> tuple[int, set[str]]:
 
 def write_feather_wide(result: dict, output: str) -> tuple[int, set[str]]:
     """Write result as Feather (timestamp, path, min_value, max_value, avg_value)."""
+    try:
+        import pyarrow as pa
+        import pyarrow.feather as feather
+    except ImportError:
+        raise ImportError(
+            "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"
+        ) from None
     timestamps, paths, min_vals, max_vals, avg_vals, unique_paths = extract_rows_wide(
         result
     )
@@ -168,6 +179,32 @@ def write_feather_wide(result: dict, output: str) -> tuple[int, set[str]]:
     )
     feather.write_feather(table, output)
     return len(timestamps), unique_paths
+
+
+def write_json(result: dict, sink, indent: int | None = None) -> tuple[int, set[str]]:
+    """Write result as JSON array of row objects (narrow mode)."""
+    timestamps, paths, values, unique_paths = extract_rows(result)
+    rows = [
+        {"timestamp": ts, "path": p, "value": v}
+        for ts, p, v in zip(timestamps, paths, values)
+    ]
+    sink.write(json.dumps(rows, indent=indent))
+    return len(rows), unique_paths
+
+
+def write_json_wide(
+    result: dict, sink, indent: int | None = None
+) -> tuple[int, set[str]]:
+    """Write result as JSON array of row objects (wide mode)."""
+    timestamps, paths, min_vals, max_vals, avg_vals, unique_paths = extract_rows_wide(
+        result
+    )
+    rows = [
+        {"timestamp": ts, "path": p, "min_value": mn, "avg_value": av, "max_value": mx}
+        for ts, p, mn, av, mx in zip(timestamps, paths, min_vals, avg_vals, max_vals)
+    ]
+    sink.write(json.dumps(rows, indent=indent))
+    return len(rows), unique_paths
 
 
 # ---------------------------------------------------------------------------
