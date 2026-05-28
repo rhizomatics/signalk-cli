@@ -27,7 +27,7 @@ Run via `python -m signalk_cli.history <command>`.
 ## Determining SignalK host name
 
 If not host name set as an argument, the CLI will look for a `SIGNALK_HOST` environment variable, and failing that attempt to automatically discover
-the host using mDNS (aka Bonjour).
+the host using mDNS (aka Bonjour) and locally cached (see [Default Caching](#default-caching)).
 
 ```bash
 export SIGNALK_HOST=192.168.6.99   # http:// is added automatically if omitted
@@ -251,6 +251,6 @@ Typical combinations:
 - `--from T1 --to T2` — explicit range
 - `--duration PT1H --to T` — hour ending at T
 
-## Provider caching
+## Default caching
 
 The default history provider is fetched from the server once and cached per host in `~/.cache/signalk-history-cli/`. Pass `--no-cache` to force a fresh lookup, or `--provider <id>` to target a specific provider explicitly.
