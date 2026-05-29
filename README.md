@@ -4,9 +4,16 @@ Query and explore SignalK APIs from the command line, and export data as CSV, Ap
 
 APIs supported:
 
-* [SignalK v2 History API](https://signalk.org/https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html)
+* [SignalK v2 History API](https://signalk.org/https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html). Commands available:
+  - list-paths
+  - list-providers
+  - list-contexts
+  - query
+  - cardinality
 
 ## Installation
+
+Python is required to run this, version 3.13 or above. [uv](https://docs.astral.sh/uv/) is the recommended way to install the package ( and can install Python ) but is not required.
 
 ### PyPi
 
