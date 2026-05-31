@@ -1,6 +1,6 @@
 # SignalK CLI
 
-Query and explore SignalK APIs from the command line, and export data as CSV, Apache Arrow Feather, or JSON.
+Query and explore marine or aviation data from SignalK APIs using the command line, and export data as CSV, Apache Arrow Feather, or JSON.
 
 APIs supported:
 
