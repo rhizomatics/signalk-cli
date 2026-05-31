@@ -13,7 +13,7 @@ APIs supported:
 
 ## Installation
 
-`signalk-cli` is published to PyPi at (https://pypi.org/project/signalk-cli/).
+`signalk-cli` is published to PyPi at https://pypi.org/project/signalk-cli/
 
 Python is required to run this, version 3.13 or above. [uv](https://docs.astral.sh/uv/) is the recommended way to install the package ( and can install Python ) but is not required.
 
