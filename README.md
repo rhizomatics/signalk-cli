@@ -1,6 +1,6 @@
 # SignalK CLI
 
-Query and explore SignalK APIs from the command line, and export data as CSV, Apache Arrow Feather, or JSON.
+Query and explore NMEA and other boat data from SignalK APIs using the command line, and export data as CSV, Apache Arrow Feather, or JSON.
 
 APIs supported:
 
@@ -12,6 +12,8 @@ APIs supported:
   - cardinality
 
 ## Installation
+
+`signalk-cli` is published to PyPi at https://pypi.org/project/signalk-cli/
 
 Python is required to run this, version 3.13 or above. [uv](https://docs.astral.sh/uv/) is the recommended way to install the package ( and can install Python ) but is not required.
 
