@@ -1,4 +1,4 @@
-# v2.0.0
+# v2.0.1
 - New module to query SignalK data streaming, with CSV, JSON and Arrow support along with ability to follow live stream
 # v1.2.0
 - Improve handling of non-scalar values, such as `navigation.position`
