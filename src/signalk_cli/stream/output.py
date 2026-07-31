@@ -73,7 +73,7 @@ def write_feather_rows(rows: list[tuple[str, str, str, str, str]], output: str) 
     """
     try:
         import pyarrow as pa
-        import pyarrow.feather as feather
+        from pyarrow import feather
     except ImportError:
         raise ImportError(
             "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"

@@ -3,7 +3,7 @@
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -202,7 +202,7 @@ def deltas(
 
         if auto_name:
             server_name = urlparse(host).hostname or re.sub(r"[^\w.-]", "_", host)
-            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
             ext = (
                 ".feather"
                 if fmt == "feather"
@@ -254,7 +254,7 @@ def deltas(
         header_written = False
         feather_rows: list[tuple[str, str, str, str, str]] = []
         fh = (
-            open(output, "w", newline="")
+            open(output, "w", newline="")  # noqa: SIM115
             if write_to_file and fmt != "feather"
             else None
         )

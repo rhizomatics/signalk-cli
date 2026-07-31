@@ -54,8 +54,8 @@ def test_apply_time_default_sets_one_hour_window():
     assert "from" in result and "to" in result
     from datetime import datetime
 
-    t_from = datetime.fromisoformat(result["from"].replace("Z", "+00:00"))
-    t_to = datetime.fromisoformat(result["to"].replace("Z", "+00:00"))
+    t_from = datetime.fromisoformat(result["from"])
+    t_to = datetime.fromisoformat(result["to"])
     diff = (t_to - t_from).total_seconds()
     assert diff == pytest.approx(3600, abs=5)
 

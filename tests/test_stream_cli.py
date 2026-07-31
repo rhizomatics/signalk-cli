@@ -184,7 +184,9 @@ def test_deltas_format_json(runner, mocker):
     _mock_open_stream(mocker, ws)
     result = runner.invoke(cli, ["deltas", HOST, "--format=json", "nav.sog"])
     assert result.exit_code == 0
-    body_line = [line for line in result.output.splitlines() if line.startswith("{")][0]
+    body_line = next(
+        line for line in result.output.splitlines() if line.startswith("{")
+    )
     row = json.loads(body_line)
     assert row["path"] == "navigation.speedOverGround"
 

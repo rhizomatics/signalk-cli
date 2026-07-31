@@ -9,5 +9,5 @@
 
 ## Reporting a Vulnerability
 
-Use GitHub issues to report security problems, unless you believe that disclosure publically is risky, in which
+Use GitHub issues to report security problems, unless you believe that disclosure publicly is risky, in which
 case email cyber@rhizomatics.org.uk.

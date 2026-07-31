@@ -43,14 +43,14 @@ def test_build_path_specs_aggregation():
 def test_build_path_specs_sma_with_samples():
     from signalk_cli.history.cli import _build_path_specs
 
-    query, wide = _build_path_specs(["nav.sog"], "sma", 5, None)
+    query, _wide = _build_path_specs(["nav.sog"], "sma", 5, None)
     assert query == "nav.sog:sma:5"
 
 
 def test_build_path_specs_ema_with_alpha():
     from signalk_cli.history.cli import _build_path_specs
 
-    query, wide = _build_path_specs(["nav.sog"], "ema", None, 0.2)
+    query, _wide = _build_path_specs(["nav.sog"], "ema", None, 0.2)
     assert query == "nav.sog:ema:0.2"
 
 
@@ -65,7 +65,7 @@ def test_build_path_specs_inline_passthrough():
 def test_build_path_specs_inline_survives_agg():
     from signalk_cli.history.cli import _build_path_specs
 
-    query, wide = _build_path_specs(["nav.sog:max", "nav.cog"], "average", None, None)
+    query, _wide = _build_path_specs(["nav.sog:max", "nav.cog"], "average", None, None)
     assert "nav.sog:max" in query
     assert "nav.cog:average" in query
 

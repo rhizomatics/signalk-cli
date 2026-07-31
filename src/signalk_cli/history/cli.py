@@ -4,7 +4,7 @@ import csv
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -22,9 +22,9 @@ from .history_api import (
     resolve_provider,
 )
 from .output import (
+    _POSITION_RE,
     CARDINALITY_COLUMNS,
     FEATHER_EXTENSIONS,
-    _POSITION_RE,
     compute_cardinality,
     write_csv,
     write_csv_wide,
@@ -299,7 +299,7 @@ def query(
         # Generate auto-named file path now that format is known
         if auto_name:
             server_name = urlparse(host).hostname or re.sub(r"[^\w.-]", "_", host)
-            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
             ext = (
                 ".feather"
                 if fmt == "feather"

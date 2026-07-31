@@ -74,7 +74,7 @@ def write_feather(result: dict, output: str) -> tuple[int, set[str]]:
     """Write result as Feather (timestamp, path, value). Returns (row_count, unique_paths)."""
     try:
         import pyarrow as pa
-        import pyarrow.feather as feather
+        from pyarrow import feather
     except ImportError:
         raise ImportError(
             "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"
@@ -239,7 +239,7 @@ def write_feather_wide(result: dict, output: str) -> tuple[int, set[str]]:
     """Write result as Feather with dynamic value columns."""
     try:
         import pyarrow as pa
-        import pyarrow.feather as feather
+        from pyarrow import feather
     except ImportError:
         raise ImportError(
             "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"
@@ -408,7 +408,9 @@ def csv_sink(
     output: str, write_to_file: bool, write_to_stdout: bool
 ) -> tuple[IO[str] | None, _MultiWriter | IO[str]]:
     """Return (file_handle_or_None, sink) for CSV writing. Caller must close file_handle."""
-    file_fh: IO[str] | None = open(output, "w", newline="") if write_to_file else None
+    file_fh: IO[str] | None = (
+        open(output, "w", newline="") if write_to_file else None  # noqa: SIM115
+    )
     sink: _MultiWriter | IO[str]
     if write_to_file and write_to_stdout:
         sink = _MultiWriter(cast(IO[str], file_fh), sys.stdout)

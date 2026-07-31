@@ -3,7 +3,6 @@
 import csv
 import io
 
-
 from signalk_cli.history.output import (
     compute_cardinality,
     extract_rows,
@@ -20,7 +19,6 @@ from tests.conftest import (
     POSITION_WIDE_RESULT,
     WIDE_RESULT,
 )
-
 
 # ---------------------------------------------------------------------------
 # extract_rows (narrow mode)
@@ -43,7 +41,7 @@ def test_extract_rows_null_skipped():
             ["2026-05-27T10:01:00Z", None, 90.0],
         ],
     }
-    ts, paths, values, unique = extract_rows(result)
+    _ts, paths, values, _unique = extract_rows(result)
     assert paths == ["nav.sog", "nav.cog"]
     assert values == ["1.5", "90.0"]
 
@@ -70,7 +68,7 @@ def test_extract_rows_empty_data():
 
 
 def test_extract_rows_wide_basic():
-    ts, paths, value_cols, unique = extract_rows_wide(WIDE_RESULT)
+    ts, _paths, value_cols, unique = extract_rows_wide(WIDE_RESULT)
     assert ts == ["2026-05-27T10:00:00Z", "2026-05-27T10:01:00Z"]
     assert value_cols["min_value"] == ["1.5", "1.0"]
     assert value_cols["avg_value"] == ["2.0", "1.5"]
@@ -116,7 +114,7 @@ def test_extract_rows_wide_multi_path():
 
 
 def test_extract_rows_wide_position_col_names():
-    ts, paths, value_cols, unique = extract_rows_wide(POSITION_WIDE_RESULT)
+    ts, _paths, value_cols, unique = extract_rows_wide(POSITION_WIDE_RESULT)
     assert list(value_cols.keys()) == ["longitude", "latitude"]
     assert ts == ["2026-05-27T10:00:00Z", "2026-05-27T10:01:00Z"]
     assert value_cols["longitude"] == ["51.5", "51.6"]

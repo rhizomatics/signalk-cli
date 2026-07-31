@@ -2,7 +2,7 @@
 
 import fnmatch
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import click
@@ -89,15 +89,15 @@ def normalise_duration(
 
     delta = _duration_to_timedelta(duration)
     fmt = "%Y-%m-%dT%H:%M:%SZ"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if from_ is not None and to is not None:
         return from_, to, None
     elif from_ is not None:
-        from_dt = datetime.fromisoformat(from_.replace("Z", "+00:00"))
+        from_dt = datetime.fromisoformat(from_)
         return from_, (from_dt + delta).strftime(fmt), None
     elif to is not None:
-        to_dt = datetime.fromisoformat(to.replace("Z", "+00:00"))
+        to_dt = datetime.fromisoformat(to)
         return (to_dt - delta).strftime(fmt), to, None
     else:
         return (now - delta).strftime(fmt), now.strftime(fmt), None
@@ -109,11 +109,11 @@ def apply_time_default(time_params: dict) -> dict:
         return time_params
     if "to" in time_params:
         try:
-            to_dt = datetime.fromisoformat(time_params["to"].replace("Z", "+00:00"))
+            to_dt = datetime.fromisoformat(time_params["to"])
         except ValueError:
-            to_dt = datetime.now(timezone.utc)
+            to_dt = datetime.now(UTC)
     else:
-        to_dt = datetime.now(timezone.utc)
+        to_dt = datetime.now(UTC)
     from_dt = to_dt - timedelta(hours=1)
     result = {
         **time_params,

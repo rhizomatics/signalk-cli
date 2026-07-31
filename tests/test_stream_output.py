@@ -35,7 +35,7 @@ def test_extract_delta_rows_single_value():
 def test_extract_delta_rows_multi_value_dict_and_none():
     rows = extract_delta_rows(DELTA_MULTI_VALUE)
     assert len(rows) == 2
-    ts, context, source, path, value = rows[0]
+    _ts, context, source, path, value = rows[0]
     assert context == "vessels.self"
     assert source == "derived-data"
     assert path == "navigation.position"
