@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls -la)",
+      "Bash(find / -iname \"*websocket*\" -path \"*niquests*\")",
+      "Bash(find / -iname \"*urllib3*\" -maxdepth 6)"
+    ]
+  }
+}

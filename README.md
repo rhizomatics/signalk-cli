@@ -10,6 +10,8 @@ APIs supported:
   - list-contexts
   - query
   - cardinality
+* [SignalK v1 Streaming API](https://signalk.org/specification/1.8.2/doc/streaming_api.html). Commands available:
+  - deltas
 
 ## Installation
 
@@ -43,12 +45,11 @@ uv run --with signalk-cli signalk_cli.history list-providers
 
 ## Running
 
-Run via `python -m signalk_cli.history <command>`. 
+Run via `python -m signalk_cli.history <command>` or `python -m signalk_cli.stream <command>` or without installing the module with `uv run --with signalk-cli signalk_cli.history <command>`.
 
 ## Determining SignalK host name
 
-If no host name is set as an argument, the CLI will look for a `SIGNALK_HOST` environment variable, and failing that attempt to automatically discover
-the host using mDNS (aka Bonjour) and locally cached (see [Default Caching](#default-caching)).
+If no host name is set as an argument, the CLI will look for a `SIGNALK_HOST` environment variable, and failing that attempt to automatically discover the host using mDNS (aka Bonjour) and locally cached (see [Default Caching](#default-caching)).
 
 ```bash
 export SIGNALK_HOST=192.168.6.99   # http:// is added automatically if omitted
@@ -372,6 +373,122 @@ python -m signalk_cli.history list-contexts --host 10.36.10.21 \
 
 # Exact API response body, no informational noise
 python -m signalk_cli.history list-contexts --host 10.36.10.21 --format raw --bare
+```
+
+---
+
+## SignalK v1 Streaming API
+
+The `signalk_cli.stream` module connects to a running SignalK server's live delta
+WebSocket feed (as opposed to `signalk_cli.history`, which queries recorded history).
+
+### `deltas`
+
+Stream live delta updates from the SignalK v1 Streaming API.
+
+```
+python -m signalk_cli.stream deltas [OPTIONS] [PATH...]
+```
+
+By default, prints the next delta message and exits — useful for a quick check.
+Use `--follow` to keep tailing until interrupted with Ctrl-C, optionally capped
+with `--count`.
+
+**PATH** arguments are sent verbatim to the server as an explicit subscription,
+one per path. They may be literal SignalK paths (e.g. `navigation.speedOverGround`)
+or use the SignalK subscription wildcard `*`, matched server-side per the
+[Subscription Protocol](https://signalk.org/specification/1.8.2/doc/subscription_protocol.html)
+— unlike `history`'s PATH patterns, which the client resolves by matching
+against the server's enumerated `/paths` list:
+
+- `*` at the end of a path matches any suffix, e.g. `navigation.*`
+- `*` as a middle segment matches any single segment there, e.g. `propulsion.*.oilTemperature`
+- a bare `*` subscribes to every path in the context
+
+Quote wildcarded paths (e.g. `'navigation.*'`) so the shell doesn't expand them
+against local filenames first.
+
+`deltas` always sends its own explicit subscribe message for `--context`,
+covering PATH arguments if given, otherwise every path (`*`). `--policy`,
+`--period`, and `--min-period` control that subscription per the
+[Subscription Protocol](https://signalk.org/specification/1.8.2/doc/subscription_protocol.html)'s
+`policy`/`period`/`minPeriod` fields:
+
+- **`--policy`** (`instant` / `ideal` / `fixed`, default `ideal`): `instant` sends every change (throttled by `--min-period`); `ideal` behaves like `instant` but resends the last value if nothing changes within `--period`; `fixed` always sends the last known value every `--period`, regardless of changes.
+- **`--period`** (seconds, default `60`): the resend interval for `ideal`/`fixed`. Converted to milliseconds on the wire.
+- **`--min-period`** (seconds): fastest allowed transmission rate, only meaningful with `--policy instant`.
+
+The protocol also defines a per-path `format` field (`delta`/`full`), but
+this CLI doesn't expose it: signalk-server rejects `full` outright ("Only
+delta format supported, using it") and always sends delta messages
+regardless, so the choice would be misleading.
+
+`--subscribe` is separate: it's the connection-level `subscribe` query
+parameter (`none`/`self`/`all`, default `none`), controlling only whether the
+server *additionally* auto-subscribes the connection at its own default
+policy/period — useful with `--subscribe all` to also receive other vessels'
+default-policy updates alongside your explicit subscription.
+
+#### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--host` | `$SIGNALK_HOST` | Server base URL. `http://` added if scheme omitted; converted to `ws://`/`wss://` for the stream connection. |
+| `--no-cache` | — | Ignore the cached host |
+| `-c, --context TEXT` | `vessels.self` | SignalK context |
+| `--subscribe [none\|self\|all]` | `none` | Connection-level subscribe policy (SignalK's own `subscribe` query parameter); see above |
+| `--policy [instant\|ideal\|fixed]` | `ideal` | Per-path subscribe `policy` field; see above |
+| `--period SECONDS` | `60` | Per-path subscribe `period` field, in seconds (converted to ms) |
+| `--min-period SECONDS` | — | Per-path subscribe `minPeriod` field, in seconds (converted to ms); only meaningful with `--policy instant` |
+| `--format [csv\|json\|raw\|feather]` | from extension, else csv | Output format. `json` is JSON Lines (one row object per line, suitable for a live stream). `raw` is the exact delta message text, one per line. `feather` requires `pip install 'signalk-cli[feather]'` and `--output` (cannot stream to stdout). |
+| `--no-header` | — | Suppress the CSV header row |
+| `-o, --output [FILE]` | stdout | Write to a file. Omit the filename (`--output` alone) to auto-name as `signalk-stream-<server>-<timestamp>.<ext>`. Required for `--format feather`. |
+| `-f, --follow` | — | Keep streaming until interrupted (Ctrl-C) or `--count` is reached. Without this, print the next message then exit. |
+| `-n, --count N` | 1 without `--follow`, unlimited with it | Number of delta messages to output |
+| `--bare` | — | Print to stdout with **no informational messages**. Ideal for piping to other tools. |
+
+#### Output formats
+
+**csv** / **json**: `timestamp, context, source, path, value` — one row per `path`/`value` pair in each delta's updates, written incrementally as messages arrive. Structured values (e.g. `navigation.position`) are JSON-encoded in the `value` column.
+
+**raw**: the exact delta message JSON as received from the server, one message per line.
+
+**feather**: Apache Arrow Feather binary format, same columns as csv/json. Requires `pip install 'signalk-cli[feather]'`. Unlike the other formats, rows are buffered in memory across all received messages and written once the session ends (`--count` reached, or Ctrl-C with `--follow`) — cannot be streamed to stdout.
+
+#### Examples
+
+```bash
+# Next update for one path, then exit
+python -m signalk_cli.stream deltas --host 10.36.10.21 navigation.speedOverGround
+
+# Tail all navigation updates until Ctrl-C
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow 'navigation.*'
+
+# Tail oil temperature across every engine (mid-path wildcard)
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow 'propulsion.*.oilTemperature'
+
+# Next 20 messages across all subscribed paths, as JSON Lines
+python -m signalk_cli.stream deltas --host 10.36.10.21 --format json --count 20
+
+# Tail two specific paths, piping raw deltas to another tool
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow --format raw --bare \
+    navigation.speedOverGround navigation.courseOverGroundTrue
+
+# Everything the server has (equivalent to ?subscribe=all), following
+python -m signalk_cli.stream deltas --host 10.36.10.21 --subscribe all --follow
+
+# Faster resend interval (5s instead of the 60s default)
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow --period 5 'navigation.*'
+
+# Send every change immediately, no more than 5 times/second
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow \
+    --policy instant --min-period 0.2 navigation.speedOverGround
+
+# Capture 500 messages to an auto-named Feather file
+python -m signalk_cli.stream deltas --host 10.36.10.21 --count 500 --format feather --output 'navigation.*'
+
+# Capture until Ctrl-C to a named Feather file
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow -o capture.feather 'navigation.*'
 ```
 
 ---

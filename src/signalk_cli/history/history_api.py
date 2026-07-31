@@ -1,79 +1,41 @@
 """SignalK v2 History API client."""
 
 import fnmatch
-import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import click
 import niquests
-from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
+
+from ..net import (
+    CACHE_DIR,
+    api_error,
+    discover_host,
+    get_cached_host,
+    normalise_host,
+    save_cached_host,
+)
+
+__all__ = [
+    "CACHE_DIR",
+    "HISTORY_BASE",
+    "api_error",
+    "apply_time_default",
+    "discover_host",
+    "expand_paths",
+    "fetch_default_provider",
+    "fetch_server_paths",
+    "get_cached_host",
+    "get_cached_provider",
+    "normalise_duration",
+    "normalise_host",
+    "resolve_provider",
+    "save_cached_host",
+    "save_cached_provider",
+]
 
 HISTORY_BASE = "/signalk/v2/api/history"
-CACHE_DIR = Path.home() / ".cache" / "signalk-cli"
-_SIGNALK_TYPE = "_signalk-ws._tcp.local."
-_HOST_CACHE_FILE = CACHE_DIR / "host.cache"
-
-
-def get_cached_host() -> str | None:
-    try:
-        if _HOST_CACHE_FILE.exists():
-            return _HOST_CACHE_FILE.read_text().strip() or None
-    except OSError:
-        pass
-    return None
-
-
-def save_cached_host(host: str) -> None:
-    try:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        _HOST_CACHE_FILE.write_text(host)
-    except OSError:
-        pass
-
-
-def discover_host(timeout: float = 5.0) -> str | None:
-    """Browse mDNS for a SignalK server and return its base URL, or None."""
-    found: list[str] = []
-
-    def _on_change(
-        zeroconf: Zeroconf,
-        service_type: str,
-        name: str,
-        state_change: ServiceStateChange,
-    ) -> None:
-        if state_change is not ServiceStateChange.Added:
-            return
-        info = zeroconf.get_service_info(service_type, name)
-        if info is None:
-            return
-        addrs = info.parsed_addresses()
-        if not addrs:
-            return
-        host = f"http://{addrs[0]}:{info.port}"
-        found.append(host)
-
-    zc = Zeroconf()
-    try:
-        ServiceBrowser(zc, _SIGNALK_TYPE, handlers=[_on_change])
-        import time
-
-        deadline = time.monotonic() + timeout
-        while not found and time.monotonic() < deadline:
-            time.sleep(0.1)
-    finally:
-        zc.close()
-
-    return found[0] if found else None
-
-
-def normalise_host(host: str) -> str:
-    """Prepend http:// if the host has no scheme."""
-    if "://" not in host:
-        return f"http://{host}"
-    return host
-
 
 _DURATION_RE = re.compile(
     r"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?"
@@ -163,18 +125,6 @@ def apply_time_default(time_params: dict) -> dict:
         err=True,
     )
     return result
-
-
-def api_error(exc: niquests.RequestException) -> str:
-    """Return the most informative message from an API error response."""
-    resp = getattr(exc, "response", None)
-    if resp is not None:
-        try:
-            body = resp.json()
-            return body.get("error") or body.get("message") or str(exc)
-        except Exception as e:
-            logging.debug("Error handling API error: %s", e)
-    return str(exc)
 
 
 # ---------------------------------------------------------------------------

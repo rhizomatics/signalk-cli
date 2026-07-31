@@ -1,8 +1,6 @@
 """Click CLI for the SignalK v2 History API."""
 
-import contextlib
 import csv
-import io
 import json
 import re
 import sys
@@ -13,18 +11,15 @@ from urllib.parse import urlparse
 import click
 import niquests
 
+from ..net import bare_option, host_option, resolve_host, stderr_ctx
 from .history_api import (
     HISTORY_BASE,
     api_error,
     apply_time_default,
-    discover_host,
     expand_paths,
     fetch_server_paths,
-    get_cached_host,
     normalise_duration,
-    normalise_host,
     resolve_provider,
-    save_cached_host,
 )
 from .output import (
     CARDINALITY_COLUMNS,
@@ -72,35 +67,8 @@ def _list_fmt_callback(ctx, param, value):
     raise click.BadParameter(f"'{value}' is not one of 'csv', 'json', 'raw'")
 
 
-def _host_option(f):
-    return click.option(
-        "--host",
-        default=None,
-        envvar="SIGNALK_HOST",
-        help="SignalK server base URL. http:// added if scheme omitted. "
-        "Discovered via mDNS if omitted.",
-    )(f)
-
-
-def _resolve_host(host: str | None, no_cache: bool = False) -> str:
-    """Return a normalised host URL, discovering via mDNS if none provided."""
-    if host:
-        return normalise_host(host)
-    if not no_cache:
-        cached = get_cached_host()
-        if cached:
-            click.echo(f"Using cached host: {cached}", err=True)
-            return cached
-    click.echo("No host specified — searching for SignalK via mDNS...", err=True)
-    discovered = discover_host()
-    if not discovered:
-        raise click.UsageError(
-            "No SignalK server found via mDNS. Use --host or set SIGNALK_HOST."
-        )
-    click.echo(f"Discovered: {discovered}", err=True)
-    if not no_cache:
-        save_cached_host(discovered)
-    return discovered
+_host_option = host_option
+_resolve_host = resolve_host
 
 
 def _provider_options(f):
@@ -127,18 +95,8 @@ def _time_options(f):
     return f
 
 
-def _bare_option(f):
-    return click.option(
-        "--bare",
-        is_flag=True,
-        help="Suppress all informational messages, outputting data only.",
-    )(f)
-
-
-def _stderr_ctx(bare: bool) -> contextlib.AbstractContextManager:
-    return (
-        contextlib.redirect_stderr(io.StringIO()) if bare else contextlib.nullcontext()
-    )
+_bare_option = bare_option
+_stderr_ctx = stderr_ctx
 
 
 def _build_time_params(from_: str | None, to: str | None, duration: str | None) -> dict:

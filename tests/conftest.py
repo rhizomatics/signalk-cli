@@ -112,3 +112,52 @@ def server_paths() -> list[str]:
         "navigation.courseOverGroundTrue",
         "environment.wind.speedApparent",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Streaming (delta) API payloads
+# ---------------------------------------------------------------------------
+
+HELLO_MESSAGE = {
+    "name": "signalk-server",
+    "version": "2.30.0",
+    "self": "vessels.urn:mrn:imo:mmsi:235094115",
+    "roles": ["master", "main"],
+    "timestamp": "2026-07-31T15:38:12.171Z",
+}
+
+DELTA_SINGLE_VALUE = {
+    "context": "vessels.urn:mrn:imo:mmsi:235094115",
+    "updates": [
+        {
+            "source": {"label": "Teltonika", "type": "NMEA0183"},
+            "$source": "Teltonika.GP",
+            "timestamp": "2026-07-31T15:38:08.041Z",
+            "values": [{"path": "navigation.speedOverGround", "value": 1.5}],
+        }
+    ],
+}
+
+DELTA_MULTI_VALUE = {
+    "context": "vessels.self",
+    "updates": [
+        {
+            "$source": "derived-data",
+            "timestamp": "2026-07-31T15:38:09.000Z",
+            "values": [
+                {
+                    "path": "navigation.position",
+                    "value": {"latitude": 51.5, "longitude": -0.1},
+                },
+                {"path": "navigation.courseOverGroundTrue", "value": None},
+            ],
+        }
+    ],
+}
+
+
+def make_ws(payloads: list) -> MagicMock:
+    """Build a mock WebSocket extension with a fixed sequence of next_payload() results."""
+    ws = MagicMock()
+    ws.next_payload.side_effect = payloads
+    return ws
