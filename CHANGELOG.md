@@ -1,3 +1,5 @@
+# v2.1.0
+- Better handling of websocket timeouts when following streaming deltas where SignalK server lags
 # v2.0.1
 - New module to query SignalK data streaming, with CSV, JSON and Arrow support along with ability to follow live stream
 # v1.2.0

@@ -233,7 +233,7 @@ def deltas(
         click.echo(f"Format:      {fmt}", err=True)
 
         try:
-            ws = open_stream(host, subscribe)
+            ws = open_stream(host, subscribe, timeout=None if follow else 30)
         except niquests.RequestException as e:
             click.echo(f"Error connecting to stream: {api_error(e)}", err=True)
             sys.exit(1)
@@ -276,6 +276,8 @@ def deltas(
                     row_total += write_csv_delta(delta, sink)
         except KeyboardInterrupt:
             pass
+        except niquests.RequestException as e:
+            click.echo(f"Stream connection lost: {api_error(e)}", err=True)
         finally:
             ws.close()
             if fh:

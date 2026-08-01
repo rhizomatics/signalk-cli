@@ -24,8 +24,14 @@ def to_ws_url(host: str) -> str:
     return urlunparse((scheme, parsed.netloc, STREAM_PATH, "", "", ""))
 
 
-def open_stream(host: str, subscribe: str, timeout: float = 30):
+def open_stream(host: str, subscribe: str, timeout: float | None = 30):
     """Open a WebSocket connection to the SignalK streaming endpoint.
+
+    `timeout` sets the socket's read timeout for the life of the connection —
+    every subsequent `next_payload()` read reuses it, not just the initial
+    handshake. Pass `None` when the caller intends to block indefinitely
+    between messages (e.g. `--follow`), since deltas can legitimately go
+    quiet for longer than any fixed timeout depending on subscribe policy.
 
     Returns the underlying HTTP extension object, used to send/receive frames
     via `send_payload`/`next_payload`.
