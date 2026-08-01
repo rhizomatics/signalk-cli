@@ -1,3 +1,6 @@
+# v2.2.0
+- Streaming now supports `values` as an output format to only emit the delta values (only useful when emitting a single path )
+- Streaming allows filtering by source, e.g. `--source 'Teltonika.*'`
 # v2.1.0
 - Better handling of websocket timeouts when following streaming deltas where SignalK server lags
 - New `--include-meta` flag to add streaming metadata

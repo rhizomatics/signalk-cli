@@ -6,13 +6,21 @@ import json
 import pytest
 
 from signalk_cli.stream.output import (
+    delta_matches_source,
     extract_delta_rows,
+    source_matches,
     write_csv_delta,
     write_csv_header,
     write_feather_rows,
     write_json_delta,
+    write_values_delta,
 )
-from tests.conftest import DELTA_MULTI_VALUE, DELTA_SINGLE_VALUE, DELTA_WITH_META
+from tests.conftest import (
+    DELTA_MULTI_SOURCE,
+    DELTA_MULTI_VALUE,
+    DELTA_SINGLE_VALUE,
+    DELTA_WITH_META,
+)
 
 # ---------------------------------------------------------------------------
 # extract_delta_rows
@@ -77,6 +85,74 @@ def test_extract_delta_rows_include_meta_adds_kind_and_meta_rows():
     assert json.loads(value) == {"units": "m/s", "description": "Speed over ground"}
 
 
+def test_extract_delta_rows_filters_by_source_substring():
+    rows = extract_delta_rows(DELTA_MULTI_SOURCE, sources=("Teltonika",))
+    assert len(rows) == 1
+    assert rows[0][2] == "Teltonika.GP"
+
+
+def test_extract_delta_rows_filters_by_source_glob():
+    rows = extract_delta_rows(DELTA_MULTI_SOURCE, sources=("*.GP",))
+    assert len(rows) == 1
+    assert rows[0][2] == "Teltonika.GP"
+
+
+def test_extract_delta_rows_multiple_source_patterns_are_ored():
+    rows = extract_delta_rows(DELTA_MULTI_SOURCE, sources=("Teltonika", "derived-data"))
+    assert len(rows) == 2
+
+
+def test_extract_delta_rows_no_matching_source_yields_no_rows():
+    rows = extract_delta_rows(DELTA_MULTI_SOURCE, sources=("no-such-source",))
+    assert rows == []
+
+
+# ---------------------------------------------------------------------------
+# source_matches / delta_matches_source
+# ---------------------------------------------------------------------------
+
+
+def test_source_matches_no_patterns_matches_anything():
+    assert source_matches("anything", ())
+
+
+def test_source_matches_substring():
+    assert source_matches("Teltonika.GP", ("Teltonika",))
+    assert not source_matches("derived-data", ("Teltonika",))
+
+
+def test_source_matches_glob():
+    assert source_matches("Teltonika.GP", ("*.GP",))
+    assert not source_matches("derived-data", ("*.GP",))
+
+
+def test_delta_matches_source_true_if_any_update_matches():
+    assert delta_matches_source(DELTA_MULTI_SOURCE, ("derived-data",))
+
+
+def test_delta_matches_source_false_if_no_update_matches():
+    assert not delta_matches_source(DELTA_MULTI_SOURCE, ("no-such-source",))
+
+
+# ---------------------------------------------------------------------------
+# write_values_delta
+# ---------------------------------------------------------------------------
+
+
+def test_write_values_delta_writes_bare_values():
+    sink = io.StringIO()
+    count = write_values_delta(DELTA_MULTI_VALUE, sink)
+    assert count == 2
+    assert sink.getvalue() == '{"latitude": 51.5, "longitude": -0.1}\n\n'
+
+
+def test_write_values_delta_filters_by_source():
+    sink = io.StringIO()
+    count = write_values_delta(DELTA_MULTI_SOURCE, sink, sources=("Teltonika",))
+    assert count == 1
+    assert sink.getvalue() == "1.5\n"
+
+
 # ---------------------------------------------------------------------------
 # write_csv_header / write_csv_delta
 # ---------------------------------------------------------------------------
@@ -107,6 +183,14 @@ def test_write_csv_delta_include_meta():
     count = write_csv_delta(DELTA_WITH_META, sink, include_meta=True)
     assert count == 2
     assert ",meta," in sink.getvalue()
+
+
+def test_write_csv_delta_filters_by_source():
+    sink = io.StringIO()
+    count = write_csv_delta(DELTA_MULTI_SOURCE, sink, sources=("derived-data",))
+    assert count == 1
+    assert "derived-data" in sink.getvalue()
+    assert "Teltonika" not in sink.getvalue()
 
 
 # ---------------------------------------------------------------------------

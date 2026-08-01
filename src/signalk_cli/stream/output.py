@@ -1,6 +1,7 @@
 """Row extraction and CSV/JSON/Feather writers for SignalK delta messages."""
 
 import csv
+import fnmatch
 import json
 from typing import IO
 
@@ -15,8 +16,42 @@ def _normalize_value(value: object) -> str:
     return str(value)
 
 
+def _update_source(update: dict) -> str:
+    return update.get("$source") or json.dumps(update.get("source", {}))
+
+
+def source_matches(source: str, patterns: tuple[str, ...]) -> bool:
+    """Match a `$source` string against `--source` filter patterns (OR'd).
+
+    No patterns means no filtering (always matches). A pattern containing
+    glob metacharacters (`*`/`?`/`[`) is matched as-is via `fnmatch`;
+    otherwise it's treated as a substring match, e.g. "Teltonika" matches
+    the source "Teltonika.GP".
+    """
+    if not patterns:
+        return True
+    return any(
+        fnmatch.fnmatch(source, p if any(c in p for c in "*?[") else f"*{p}*")
+        for p in patterns
+    )
+
+
+def delta_matches_source(delta: dict, patterns: tuple[str, ...]) -> bool:
+    """True if any update in the delta has a `$source` matching `patterns`.
+
+    Used for `--format raw`, which echoes the whole message verbatim and so
+    can only filter at message granularity, not per-update.
+    """
+    if not patterns:
+        return True
+    return any(
+        source_matches(_update_source(update), patterns)
+        for update in delta.get("updates", [])
+    )
+
+
 def extract_delta_rows(
-    delta: dict, *, include_meta: bool = False
+    delta: dict, *, include_meta: bool = False, sources: tuple[str, ...] = ()
 ) -> list[tuple[str, ...]]:
     """Flatten a single delta message into rows.
 
@@ -26,12 +61,18 @@ def extract_delta_rows(
     update's "meta" entries are included too — per the Streaming API spec,
     "meta" entries have the same path/value shape but "value" is a metadata
     object (units, description, zones, etc.), not a telemetry reading.
+
+    `sources`, if given, drops entire updates whose `$source` doesn't match
+    any pattern (see `source_matches`) — filtering is per-update, since
+    that's the granularity at which SignalK attaches a source.
     """
     context = delta.get("context", "")
     rows: list[tuple[str, ...]] = []
     for update in delta.get("updates", []):
+        source = _update_source(update)
+        if not source_matches(source, sources):
+            continue
         timestamp = update.get("timestamp", "")
-        source = update.get("$source") or json.dumps(update.get("source", {}))
         for entry in update.get("values", []):
             path = entry.get("path", "")
             value = _normalize_value(entry.get("value"))
@@ -60,9 +101,15 @@ def write_csv_header(sink: IO[str], *, include_meta: bool = False) -> None:
     sink.flush()
 
 
-def write_csv_delta(delta: dict, sink: IO[str], *, include_meta: bool = False) -> int:
+def write_csv_delta(
+    delta: dict,
+    sink: IO[str],
+    *,
+    include_meta: bool = False,
+    sources: tuple[str, ...] = (),
+) -> int:
     """Write one delta's rows as CSV lines. Returns the number of rows written."""
-    rows = extract_delta_rows(delta, include_meta=include_meta)
+    rows = extract_delta_rows(delta, include_meta=include_meta, sources=sources)
     writer = csv.writer(sink)
     for row in rows:
         writer.writerow(row)
@@ -70,12 +117,38 @@ def write_csv_delta(delta: dict, sink: IO[str], *, include_meta: bool = False) -
     return len(rows)
 
 
-def write_json_delta(delta: dict, sink: IO[str], *, include_meta: bool = False) -> int:
+def write_json_delta(
+    delta: dict,
+    sink: IO[str],
+    *,
+    include_meta: bool = False,
+    sources: tuple[str, ...] = (),
+) -> int:
     """Write one delta's rows as JSON Lines (one row object per line). Returns row count."""
-    rows = extract_delta_rows(delta, include_meta=include_meta)
+    rows = extract_delta_rows(delta, include_meta=include_meta, sources=sources)
     columns = _columns(include_meta)
     for row in rows:
         sink.write(json.dumps(dict(zip(columns, row))))
+        sink.write("\n")
+    sink.flush()
+    return len(rows)
+
+
+def write_values_delta(
+    delta: dict,
+    sink: IO[str],
+    *,
+    include_meta: bool = False,
+    sources: tuple[str, ...] = (),
+) -> int:
+    """Write one delta's bare values, one per line — no other columns.
+
+    For `--format values`: useful for piping a single path's readings
+    straight into another tool/script. Returns the number of values written.
+    """
+    rows = extract_delta_rows(delta, include_meta=include_meta, sources=sources)
+    for row in rows:
+        sink.write(row[-1])
         sink.write("\n")
     sink.flush()
     return len(rows)

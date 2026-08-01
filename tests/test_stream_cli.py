@@ -6,7 +6,13 @@ import pytest
 from click.testing import CliRunner
 
 from signalk_cli.stream.cli import cli
-from tests.conftest import DELTA_SINGLE_VALUE, DELTA_WITH_META, HELLO_MESSAGE, make_ws
+from tests.conftest import (
+    DELTA_MULTI_SOURCE,
+    DELTA_SINGLE_VALUE,
+    DELTA_WITH_META,
+    HELLO_MESSAGE,
+    make_ws,
+)
 
 HOST = "--host=testserver"
 
@@ -218,6 +224,50 @@ def test_deltas_without_include_meta_drops_meta_rows(runner, mocker):
     assert result.exit_code == 0
     assert "kind" not in result.output
     assert "1 message(s), 1 row(s)" in result.output
+
+
+def test_deltas_format_values(runner, mocker):
+    ws = make_ws([json.dumps(DELTA_SINGLE_VALUE)])
+    _mock_open_stream(mocker, ws)
+    result = runner.invoke(
+        cli, ["deltas", HOST, "--format=values", "--bare", "nav.sog"]
+    )
+    assert result.exit_code == 0
+    assert result.output == "1.5\n"
+
+
+# ---------------------------------------------------------------------------
+# --source
+# ---------------------------------------------------------------------------
+
+
+def test_deltas_source_filters_csv_rows(runner, mocker):
+    ws = make_ws([json.dumps(DELTA_MULTI_SOURCE)])
+    _mock_open_stream(mocker, ws)
+    result = runner.invoke(
+        cli, ["deltas", HOST, "--source=Teltonika", "--bare", "nav.sog"]
+    )
+    assert result.exit_code == 0
+    assert "Teltonika.GP" in result.output
+    assert "derived-data" not in result.output
+
+
+def test_deltas_source_filters_raw_at_message_granularity(runner, mocker):
+    ws = make_ws([json.dumps(DELTA_MULTI_SOURCE)])
+    _mock_open_stream(mocker, ws)
+    result = runner.invoke(
+        cli,
+        [
+            "deltas",
+            HOST,
+            "--source=no-such-source",
+            "--format=raw",
+            "--bare",
+            "nav.sog",
+        ],
+    )
+    assert result.exit_code == 0
+    assert result.output == ""
 
 
 def test_deltas_format_raw(runner, mocker):

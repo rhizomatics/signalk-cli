@@ -156,6 +156,23 @@ DELTA_MULTI_VALUE = {
 }
 
 
+DELTA_MULTI_SOURCE = {
+    "context": "vessels.self",
+    "updates": [
+        {
+            "$source": "Teltonika.GP",
+            "timestamp": "2026-07-31T15:38:11.000Z",
+            "values": [{"path": "navigation.speedOverGround", "value": 1.5}],
+        },
+        {
+            "$source": "derived-data",
+            "timestamp": "2026-07-31T15:38:11.000Z",
+            "values": [{"path": "navigation.speedOverGround", "value": 1.6}],
+        },
+    ],
+}
+
+
 DELTA_WITH_META = {
     "context": "vessels.self",
     "updates": [

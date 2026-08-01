@@ -13,11 +13,13 @@ import niquests
 from ..net import api_error, bare_option, host_option, resolve_host, stderr_ctx
 from .output import (
     FEATHER_EXTENSIONS,
+    delta_matches_source,
     extract_delta_rows,
     write_csv_delta,
     write_csv_header,
     write_feather_rows,
     write_json_delta,
+    write_values_delta,
 )
 from .stream_api import (
     SUBSCRIBE_POLICIES,
@@ -103,10 +105,13 @@ def cli():
     "--format",
     "fmt",
     default=None,
-    type=click.Choice(["csv", "json", "raw", "feather"], case_sensitive=False),
+    type=click.Choice(
+        ["csv", "json", "raw", "feather", "values"], case_sensitive=False
+    ),
     help="Output format (default: inferred from --output extension, else csv). "
     "json is JSON Lines (one row object per line). raw is the exact delta "
-    "message text, one per line. feather requires "
+    "message text, one per line. values is the bare value only, one per "
+    "line — no timestamp/context/source/path/kind columns. feather requires "
     "pip install 'signalk-cli[feather]' and --output (cannot stream to stdout).",
 )
 @click.option("--no-header", is_flag=True, help="Suppress header row (CSV only)")
@@ -116,6 +121,19 @@ def cli():
     help="Also emit rows for 'meta' entries (units, description, zones, etc.), "
     "not just 'values'. Adds a 'kind' column (value/meta) to csv/json/feather "
     "output. Ignored for --format raw, which always includes meta as-is.",
+)
+@click.option(
+    "--source",
+    "source",
+    multiple=True,
+    metavar="PATTERN",
+    help="Only include updates whose $source matches PATTERN. Repeatable "
+    "(OR'd together). PATTERN is a substring match unless it contains a "
+    "glob metacharacter (*/?/[), in which case it's matched as a glob, "
+    "e.g. --source Teltonika or --source '*.GP'. Filtering is client-side, "
+    "applied after receipt — for --format raw (whole message, verbatim) a "
+    "message passes if ANY of its updates match; other formats filter "
+    "per-update.",
 )
 @click.option(
     "--output",
@@ -156,6 +174,7 @@ def deltas(
     fmt,
     no_header,
     include_meta,
+    source,
     output,
     follow,
     count,
@@ -164,7 +183,8 @@ def deltas(
     """Stream live delta updates from the SignalK v1 Streaming API.
 
     Connects via WebSocket and prints delta messages as they arrive, in
-    csv, json (JSON Lines), raw, or Feather format.
+    csv, json (JSON Lines), raw, values (bare value only), or Feather
+    format.
 
     Always sends an explicit subscribe message for --context, covering
     PATH arguments if given, otherwise every path ('*'). PATH arguments
@@ -196,6 +216,10 @@ def deltas(
 
       # Capture 100 messages to a Feather file (requires signalk-cli[feather])
       signalk_cli.stream deltas --host 10.36.10.21 --count 100 -o capture.feather
+
+      # Bare speed values from one sensor, piped straight into another tool
+      signalk_cli.stream deltas --host 10.36.10.21 --follow --format values \\
+          --source Teltonika --bare navigation.speedOverGround
     """
     with stderr_ctx(bare):
         host = resolve_host(host, no_cache)
@@ -224,6 +248,8 @@ def deltas(
                 if fmt == "feather"
                 else ".json"
                 if fmt in ("json", "raw")
+                else ".txt"
+                if fmt == "values"
                 else ".csv"
             )
             output = f"signalk-stream-{server_name}-{ts}{ext}"
@@ -280,20 +306,29 @@ def deltas(
                 message_count += 1
                 if fmt == "feather":
                     feather_rows.extend(
-                        extract_delta_rows(delta, include_meta=include_meta)
+                        extract_delta_rows(
+                            delta, include_meta=include_meta, sources=source
+                        )
                     )
                     row_total = len(feather_rows)
                 elif fmt == "raw":
-                    click.echo(raw, file=sink)
+                    if delta_matches_source(delta, source):
+                        click.echo(raw, file=sink)
                 elif fmt == "json":
                     row_total += write_json_delta(
-                        delta, sink, include_meta=include_meta
+                        delta, sink, include_meta=include_meta, sources=source
+                    )
+                elif fmt == "values":
+                    row_total += write_values_delta(
+                        delta, sink, include_meta=include_meta, sources=source
                     )
                 else:
                     if not header_written and not no_header:
                         write_csv_header(sink, include_meta=include_meta)
                         header_written = True
-                    row_total += write_csv_delta(delta, sink, include_meta=include_meta)
+                    row_total += write_csv_delta(
+                        delta, sink, include_meta=include_meta, sources=source
+                    )
         except KeyboardInterrupt:
             pass
         except niquests.RequestException as e:

@@ -458,9 +458,10 @@ interchangeable:
 | `--policy [instant\|ideal\|fixed]` | `ideal` | Per-path subscribe `policy` field; see above |
 | `--period SECONDS` | `60` | Per-path subscribe `period` field, in seconds (converted to ms) |
 | `--min-period SECONDS` | — | Per-path subscribe `minPeriod` field, in seconds (converted to ms); only meaningful with `--policy instant` |
-| `--format [csv\|json\|raw\|feather]` | from extension, else csv | Output format. `json` is JSON Lines (one row object per line, suitable for a live stream). `raw` is the exact delta message text, one per line. `feather` requires `pip install 'signalk-cli[feather]'` and `--output` (cannot stream to stdout). |
+| `--format [csv\|json\|raw\|values\|feather]` | from extension, else csv | Output format. `json` is JSON Lines (one row object per line, suitable for a live stream). `raw` is the exact delta message text, one per line. `values` is the bare value only, one per line — no other columns. `feather` requires `pip install 'signalk-cli[feather]'` and `--output` (cannot stream to stdout). |
 | `--no-header` | — | Suppress the CSV header row |
 | `--include-meta` | — | Also emit rows for `meta` entries (units, description, zones, etc.), not just `values`. Adds a `kind` column (`value`/`meta`) to csv/json/feather output. Ignored for `--format raw`, which always includes meta as-is. |
+| `--source PATTERN` | — | Only include updates whose `$source` matches `PATTERN`. Repeatable, OR'd together. Substring match unless `PATTERN` contains a glob metacharacter (`*`/`?`/`[`), e.g. `--source Teltonika` or `--source '*.GP'`. Client-side, applied after receipt: `csv`/`json`/`values`/`feather` filter per-update; `raw` (whole message, verbatim) passes a message through if *any* of its updates match. |
 | `-o, --output [FILE]` | stdout | Write to a file. Omit the filename (`--output` alone) to auto-name as `signalk-stream-<server>-<timestamp>.<ext>`. Required for `--format feather`. |
 | `-f, --follow` | — | Keep streaming until interrupted (Ctrl-C) or `--count` is reached. Without this, print the next message then exit. |
 | `-n, --count N` | 1 without `--follow`, unlimited with it | Number of delta messages to output |
@@ -471,6 +472,8 @@ interchangeable:
 **csv** / **json**: `timestamp, context, source, path, value` — one row per `path`/`value` pair in each delta's updates, written incrementally as messages arrive. Structured values (e.g. `navigation.position`) are JSON-encoded in the `value` column. With `--include-meta`, a `kind` column (`value`/`meta`) is inserted before `value`, and `meta` entries (units, description, zones, etc. — also JSON-encoded) are included as rows too; without it, `meta` entries are silently dropped from csv/json/feather (they're still present in `raw`).
 
 **raw**: the exact delta message JSON as received from the server, one message per line.
+
+**values**: just the `value` column, one per line — no timestamp/context/source/path/kind. Best for piping a single path's readings straight into another tool or script. With `--include-meta`, meta values are interleaved in too, indistinguishable from data values (there's no `kind` column to tell them apart) — generally only useful combined with `--source`/PATH filtering down to one thing.
 
 **feather**: Apache Arrow Feather binary format, same columns as csv/json. Requires `pip install 'signalk-cli[feather]'`. Unlike the other formats, rows are buffered in memory across all received messages and written once the session ends (`--count` reached, or Ctrl-C with `--follow`) — cannot be streamed to stdout.
 
@@ -508,6 +511,13 @@ python -m signalk_cli.stream deltas --host 10.36.10.21 --count 500 --format feat
 
 # Capture until Ctrl-C to a named Feather file
 python -m signalk_cli.stream deltas --host 10.36.10.21 --follow -o capture.feather 'navigation.*'
+
+# Only updates from one sensor (substring match on $source)
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow --source Teltonika 'navigation.*'
+
+# Bare speed values from one sensor, piped straight into another tool
+python -m signalk_cli.stream deltas --host 10.36.10.21 --follow --format values \
+    --source Teltonika --bare navigation.speedOverGround
 ```
 
 ---
