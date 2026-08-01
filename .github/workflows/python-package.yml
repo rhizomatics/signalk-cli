@@ -15,16 +15,16 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v7.0.0
+    - uses: actions/checkout@v7.0.1
     - name: Install uv
-      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
       with:
         python-version: 3.14
     - name: Install dependencies
       run: uv sync --locked --all-extras --dev
        
     - name: Ruff
-      uses: astral-sh/ruff-action@v4.0.0
+      uses: astral-sh/ruff-action@v4.1.0
     - name: Test with pytest
       run: uv run pytest tests
     - name: Build a binary wheel and a source tarball
