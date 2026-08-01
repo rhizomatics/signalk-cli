@@ -6,7 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from signalk_cli.stream.cli import cli
-from tests.conftest import DELTA_SINGLE_VALUE, HELLO_MESSAGE, make_ws
+from tests.conftest import DELTA_SINGLE_VALUE, DELTA_WITH_META, HELLO_MESSAGE, make_ws
 
 HOST = "--host=testserver"
 
@@ -59,6 +59,16 @@ def test_deltas_sends_explicit_subscribe_for_paths(runner, mocker):
             }
         ],
     }
+
+
+def test_deltas_context_wildcard_subscribes_to_all_vessels(runner, mocker):
+    ws = make_ws([json.dumps(DELTA_SINGLE_VALUE)])
+    _mock_open_stream(mocker, ws)
+    runner.invoke(
+        cli, ["deltas", HOST, "-c", "vessels.*", "navigation.speedOverGround"]
+    )
+    sent = json.loads(ws.send_payload.call_args[0][0])
+    assert sent["context"] == "vessels.*"
 
 
 def test_deltas_no_paths_subscribes_to_wildcard(runner, mocker):
@@ -189,6 +199,25 @@ def test_deltas_format_json(runner, mocker):
     )
     row = json.loads(body_line)
     assert row["path"] == "navigation.speedOverGround"
+
+
+def test_deltas_include_meta_adds_kind_column(runner, mocker):
+    ws = make_ws([json.dumps(DELTA_WITH_META)])
+    _mock_open_stream(mocker, ws)
+    result = runner.invoke(cli, ["deltas", HOST, "--include-meta", "nav.sog"])
+    assert result.exit_code == 0
+    assert "kind" in result.output
+    assert ",meta," in result.output
+    assert "1 message(s), 2 row(s)" in result.output
+
+
+def test_deltas_without_include_meta_drops_meta_rows(runner, mocker):
+    ws = make_ws([json.dumps(DELTA_WITH_META)])
+    _mock_open_stream(mocker, ws)
+    result = runner.invoke(cli, ["deltas", HOST, "nav.sog"])
+    assert result.exit_code == 0
+    assert "kind" not in result.output
+    assert "1 message(s), 1 row(s)" in result.output
 
 
 def test_deltas_format_raw(runner, mocker):

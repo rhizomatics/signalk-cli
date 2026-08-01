@@ -1,5 +1,7 @@
 # v2.1.0
 - Better handling of websocket timeouts when following streaming deltas where SignalK server lags
+- New `--include-meta` flag to add streaming metadata
+- Improved and clarified use of `context` and `subscribe` when streaming
 # v2.0.1
 - New module to query SignalK data streaming, with CSV, JSON and Arrow support along with ability to follow live stream
 # v1.2.0

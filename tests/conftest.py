@@ -156,6 +156,26 @@ DELTA_MULTI_VALUE = {
 }
 
 
+DELTA_WITH_META = {
+    "context": "vessels.self",
+    "updates": [
+        {
+            "$source": "derived-data",
+            "timestamp": "2026-07-31T15:38:10.000Z",
+            "values": [
+                {"path": "navigation.speedOverGround", "value": 2.5},
+            ],
+            "meta": [
+                {
+                    "path": "navigation.speedOverGround",
+                    "value": {"units": "m/s", "description": "Speed over ground"},
+                },
+            ],
+        }
+    ],
+}
+
+
 def make_ws(payloads: list) -> MagicMock:
     """Build a mock WebSocket extension with a fixed sequence of next_payload() results."""
     ws = MagicMock()

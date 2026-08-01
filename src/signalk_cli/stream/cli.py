@@ -49,18 +49,26 @@ def cli():
 @host_option
 @click.option("--no-cache", is_flag=True, help="Ignore cached host")
 @click.option(
-    "--context", "-c", default="vessels.self", show_default=True, help="SignalK context"
+    "--context",
+    "-c",
+    default="vessels.self",
+    show_default=True,
+    help="SignalK context for the explicit subscription this command "
+    "always sends. Also accepts the SignalK wildcard '*' (or 'vessels.*') "
+    "to subscribe to every vessel at your own --policy/--period — the "
+    "alternative to --subscribe all, which uses the server's default rate.",
 )
 @click.option(
     "--subscribe",
     type=click.Choice(SUBSCRIBE_POLICIES, case_sensitive=False),
     default="none",
     show_default=True,
-    help="Connection-level subscribe policy (none/self/all): whether the "
-    "server also auto-subscribes this connection using its own default "
-    "policy/period, in addition to the explicit subscription this command "
-    "always sends for --context. Use 'all' to also receive other vessels' "
-    "default-policy updates.",
+    help="Connection-level auto-subscribe at the server's OWN default "
+    "policy/period — separate from, and in addition to, this command's "
+    "explicit --context subscription above. Defaults to 'none' (the "
+    "SignalK spec's own default is 'self') to avoid double-subscribing "
+    "your own context. 'all' adds other vessels at the server's rate; for "
+    "other vessels at your chosen rate, use --context '*' instead.",
 )
 @click.option(
     "--policy",
@@ -103,6 +111,13 @@ def cli():
 )
 @click.option("--no-header", is_flag=True, help="Suppress header row (CSV only)")
 @click.option(
+    "--include-meta",
+    is_flag=True,
+    help="Also emit rows for 'meta' entries (units, description, zones, etc.), "
+    "not just 'values'. Adds a 'kind' column (value/meta) to csv/json/feather "
+    "output. Ignored for --format raw, which always includes meta as-is.",
+)
+@click.option(
     "--output",
     "-o",
     is_flag=False,
@@ -140,6 +155,7 @@ def deltas(
     min_period,
     fmt,
     no_header,
+    include_meta,
     output,
     follow,
     count,
@@ -252,7 +268,7 @@ def deltas(
         message_count = 0
         row_total = 0
         header_written = False
-        feather_rows: list[tuple[str, str, str, str, str]] = []
+        feather_rows: list[tuple[str, ...]] = []
         fh = (
             open(output, "w", newline="")  # noqa: SIM115
             if write_to_file and fmt != "feather"
@@ -263,17 +279,21 @@ def deltas(
             for raw, delta in iter_deltas(ws, effective_count):
                 message_count += 1
                 if fmt == "feather":
-                    feather_rows.extend(extract_delta_rows(delta))
+                    feather_rows.extend(
+                        extract_delta_rows(delta, include_meta=include_meta)
+                    )
                     row_total = len(feather_rows)
                 elif fmt == "raw":
                     click.echo(raw, file=sink)
                 elif fmt == "json":
-                    row_total += write_json_delta(delta, sink)
+                    row_total += write_json_delta(
+                        delta, sink, include_meta=include_meta
+                    )
                 else:
                     if not header_written and not no_header:
-                        write_csv_header(sink)
+                        write_csv_header(sink, include_meta=include_meta)
                         header_written = True
-                    row_total += write_csv_delta(delta, sink)
+                    row_total += write_csv_delta(delta, sink, include_meta=include_meta)
         except KeyboardInterrupt:
             pass
         except niquests.RequestException as e:
@@ -284,7 +304,7 @@ def deltas(
                 fh.close()
 
         if fmt == "feather":
-            write_feather_rows(feather_rows, output)
+            write_feather_rows(feather_rows, output, include_meta=include_meta)
 
         if write_to_file:
             click.echo(f"Wrote {output}", err=True)

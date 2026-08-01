@@ -7,37 +7,62 @@ from typing import IO
 FEATHER_EXTENSIONS = {".feather", ".arrow", ".fea"}
 
 
-def extract_delta_rows(delta: dict) -> list[tuple[str, str, str, str, str]]:
-    """Flatten a single delta message into (timestamp, context, source, path, value) rows."""
+def _normalize_value(value: object) -> str:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def extract_delta_rows(
+    delta: dict, *, include_meta: bool = False
+) -> list[tuple[str, ...]]:
+    """Flatten a single delta message into rows.
+
+    Without `include_meta`, rows are (timestamp, context, source, path,
+    value) from each update's "values" entries. With `include_meta`, a
+    "kind" column ("value"/"meta") is inserted before "value", and each
+    update's "meta" entries are included too — per the Streaming API spec,
+    "meta" entries have the same path/value shape but "value" is a metadata
+    object (units, description, zones, etc.), not a telemetry reading.
+    """
     context = delta.get("context", "")
-    rows = []
+    rows: list[tuple[str, ...]] = []
     for update in delta.get("updates", []):
         timestamp = update.get("timestamp", "")
         source = update.get("$source") or json.dumps(update.get("source", {}))
         for entry in update.get("values", []):
             path = entry.get("path", "")
-            value = entry.get("value")
-            if isinstance(value, (dict, list)):
-                value = json.dumps(value)
-            elif value is None:
-                value = ""
+            value = _normalize_value(entry.get("value"))
+            if include_meta:
+                rows.append((timestamp, context, source, path, "value", value))
             else:
-                value = str(value)
-            rows.append((timestamp, context, source, path, value))
+                rows.append((timestamp, context, source, path, value))
+        if include_meta:
+            for entry in update.get("meta", []):
+                path = entry.get("path", "")
+                value = _normalize_value(entry.get("value"))
+                rows.append((timestamp, context, source, path, "meta", value))
     return rows
 
 
 CSV_COLUMNS = ["timestamp", "context", "source", "path", "value"]
+CSV_COLUMNS_WITH_KIND = ["timestamp", "context", "source", "path", "kind", "value"]
 
 
-def write_csv_header(sink: IO[str]) -> None:
-    csv.writer(sink).writerow(CSV_COLUMNS)
+def _columns(include_meta: bool) -> list[str]:
+    return CSV_COLUMNS_WITH_KIND if include_meta else CSV_COLUMNS
+
+
+def write_csv_header(sink: IO[str], *, include_meta: bool = False) -> None:
+    csv.writer(sink).writerow(_columns(include_meta))
     sink.flush()
 
 
-def write_csv_delta(delta: dict, sink: IO[str]) -> int:
+def write_csv_delta(delta: dict, sink: IO[str], *, include_meta: bool = False) -> int:
     """Write one delta's rows as CSV lines. Returns the number of rows written."""
-    rows = extract_delta_rows(delta)
+    rows = extract_delta_rows(delta, include_meta=include_meta)
     writer = csv.writer(sink)
     for row in rows:
         writer.writerow(row)
@@ -45,27 +70,20 @@ def write_csv_delta(delta: dict, sink: IO[str]) -> int:
     return len(rows)
 
 
-def write_json_delta(delta: dict, sink: IO[str]) -> int:
+def write_json_delta(delta: dict, sink: IO[str], *, include_meta: bool = False) -> int:
     """Write one delta's rows as JSON Lines (one row object per line). Returns row count."""
-    rows = extract_delta_rows(delta)
-    for ts, context, source, path, value in rows:
-        sink.write(
-            json.dumps(
-                {
-                    "timestamp": ts,
-                    "context": context,
-                    "source": source,
-                    "path": path,
-                    "value": value,
-                }
-            )
-        )
+    rows = extract_delta_rows(delta, include_meta=include_meta)
+    columns = _columns(include_meta)
+    for row in rows:
+        sink.write(json.dumps(dict(zip(columns, row))))
         sink.write("\n")
     sink.flush()
     return len(rows)
 
 
-def write_feather_rows(rows: list[tuple[str, str, str, str, str]], output: str) -> int:
+def write_feather_rows(
+    rows: list[tuple[str, ...]], output: str, *, include_meta: bool = False
+) -> int:
     """Write accumulated delta rows as Feather. Returns the number of rows written.
 
     Unlike CSV/JSON, Feather cannot be appended to incrementally — callers must
@@ -78,11 +96,12 @@ def write_feather_rows(rows: list[tuple[str, str, str, str, str]], output: str) 
         raise ImportError(
             "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"
         ) from None
-    columns = list(zip(*rows)) if rows else [()] * len(CSV_COLUMNS)
+    columns = _columns(include_meta)
+    row_columns = list(zip(*rows)) if rows else [()] * len(columns)
     table = pa.table(
         {
             name: pa.array(values, type=pa.string())
-            for name, values in zip(CSV_COLUMNS, columns)
+            for name, values in zip(columns, row_columns)
         }
     )
     feather.write_feather(table, output)

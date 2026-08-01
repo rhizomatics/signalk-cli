@@ -12,7 +12,7 @@ from signalk_cli.stream.output import (
     write_feather_rows,
     write_json_delta,
 )
-from tests.conftest import DELTA_MULTI_VALUE, DELTA_SINGLE_VALUE
+from tests.conftest import DELTA_MULTI_VALUE, DELTA_SINGLE_VALUE, DELTA_WITH_META
 
 # ---------------------------------------------------------------------------
 # extract_delta_rows
@@ -59,6 +59,24 @@ def test_extract_delta_rows_falls_back_to_source_object():
     assert json.loads(rows[0][2]) == {"label": "gps0"}
 
 
+def test_extract_delta_rows_ignores_meta_by_default():
+    rows = extract_delta_rows(DELTA_WITH_META)
+    assert len(rows) == 1
+    assert rows[0][3] == "navigation.speedOverGround"
+    assert rows[0][4] == "2.5"
+
+
+def test_extract_delta_rows_include_meta_adds_kind_and_meta_rows():
+    rows = extract_delta_rows(DELTA_WITH_META, include_meta=True)
+    assert len(rows) == 2
+    _ts, _context, _source, path, kind, value = rows[0]
+    assert (path, kind, value) == ("navigation.speedOverGround", "value", "2.5")
+    _ts, _context, _source, path, kind, value = rows[1]
+    assert path == "navigation.speedOverGround"
+    assert kind == "meta"
+    assert json.loads(value) == {"units": "m/s", "description": "Speed over ground"}
+
+
 # ---------------------------------------------------------------------------
 # write_csv_header / write_csv_delta
 # ---------------------------------------------------------------------------
@@ -70,12 +88,25 @@ def test_write_csv_header():
     assert sink.getvalue() == "timestamp,context,source,path,value\r\n"
 
 
+def test_write_csv_header_include_meta():
+    sink = io.StringIO()
+    write_csv_header(sink, include_meta=True)
+    assert sink.getvalue() == "timestamp,context,source,path,kind,value\r\n"
+
+
 def test_write_csv_delta_row_count_and_content():
     sink = io.StringIO()
     count = write_csv_delta(DELTA_SINGLE_VALUE, sink)
     assert count == 1
     assert "navigation.speedOverGround" in sink.getvalue()
     assert "1.5" in sink.getvalue()
+
+
+def test_write_csv_delta_include_meta():
+    sink = io.StringIO()
+    count = write_csv_delta(DELTA_WITH_META, sink, include_meta=True)
+    assert count == 2
+    assert ",meta," in sink.getvalue()
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +123,14 @@ def test_write_json_delta_writes_json_lines():
     row0 = json.loads(lines[0])
     assert row0["path"] == "navigation.position"
     assert row0["context"] == "vessels.self"
+
+
+def test_write_json_delta_include_meta():
+    sink = io.StringIO()
+    count = write_json_delta(DELTA_WITH_META, sink, include_meta=True)
+    assert count == 2
+    lines = [json.loads(line) for line in sink.getvalue().splitlines()]
+    assert [row["kind"] for row in lines] == ["value", "meta"]
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +158,26 @@ def test_write_feather_rows_writes_table(tmp_path):
     assert table.num_rows == len(rows)
     assert table.column_names == ["timestamp", "context", "source", "path", "value"]
     assert table.column("path").to_pylist() == [r[3] for r in rows]
+
+
+def test_write_feather_rows_include_meta(tmp_path):
+    feather = pytest.importorskip("pyarrow.feather")
+
+    rows = extract_delta_rows(DELTA_WITH_META, include_meta=True)
+    out_file = tmp_path / "meta.feather"
+    count = write_feather_rows(rows, str(out_file), include_meta=True)
+
+    assert count == 2
+    table = feather.read_table(out_file)
+    assert table.column_names == [
+        "timestamp",
+        "context",
+        "source",
+        "path",
+        "kind",
+        "value",
+    ]
+    assert table.column("kind").to_pylist() == ["value", "meta"]
 
 
 def test_write_feather_rows_empty(tmp_path):

@@ -412,8 +412,10 @@ against the server's enumerated `/paths` list:
 Quote wildcarded paths (e.g. `'navigation.*'`) so the shell doesn't expand them
 against local filenames first.
 
-`deltas` always sends its own explicit subscribe message for `--context`,
-covering PATH arguments if given, otherwise every path (`*`). `--policy`,
+`deltas` always sends its own explicit subscribe message for `--context`
+(default `vessels.self`), covering PATH arguments if given, otherwise every
+path (`*`). `--context` also accepts the SignalK wildcard: `'*'` or
+`'vessels.*'` subscribes to every vessel, not just your own. `--policy`,
 `--period`, and `--min-period` control that subscription per the
 [Subscription Protocol](https://signalk.org/specification/1.8.2/doc/subscription_protocol.html)'s
 `policy`/`period`/`minPeriod` fields:
@@ -427,11 +429,23 @@ this CLI doesn't expose it: signalk-server rejects `full` outright ("Only
 delta format supported, using it") and always sends delta messages
 regardless, so the choice would be misleading.
 
-`--subscribe` is separate: it's the connection-level `subscribe` query
-parameter (`none`/`self`/`all`, default `none`), controlling only whether the
-server *additionally* auto-subscribes the connection at its own default
-policy/period — useful with `--subscribe all` to also receive other vessels'
-default-policy updates alongside your explicit subscription.
+**`--subscribe` is a separate, easily-confused mechanism**: it's the
+connection-level `subscribe` query parameter (`none`/`self`/`all`), which
+controls whether the server *additionally* auto-subscribes the connection
+at **its own** default policy/period — you don't get to choose the rate.
+This CLI defaults it to `none`, diverging from the SignalK spec's own
+default of `self`, because `deltas` always sends its own explicit `--context`
+subscription anyway; leaving the connection-level default at `self` would
+just double up on updates for your own vessel.
+
+So there are two different ways to see every vessel, and they're not
+interchangeable:
+
+| Want | Use | Policy/period used |
+|---|---|---|
+| Just your own vessel | (defaults) | Yours (`--policy`/`--period`) |
+| Every vessel, at your chosen rate | `--context '*'` | Yours (`--policy`/`--period`) |
+| Every vessel, at whatever rate the server defaults to | `--subscribe all` | The server's own default |
 
 #### Options
 
@@ -446,6 +460,7 @@ default-policy updates alongside your explicit subscription.
 | `--min-period SECONDS` | — | Per-path subscribe `minPeriod` field, in seconds (converted to ms); only meaningful with `--policy instant` |
 | `--format [csv\|json\|raw\|feather]` | from extension, else csv | Output format. `json` is JSON Lines (one row object per line, suitable for a live stream). `raw` is the exact delta message text, one per line. `feather` requires `pip install 'signalk-cli[feather]'` and `--output` (cannot stream to stdout). |
 | `--no-header` | — | Suppress the CSV header row |
+| `--include-meta` | — | Also emit rows for `meta` entries (units, description, zones, etc.), not just `values`. Adds a `kind` column (`value`/`meta`) to csv/json/feather output. Ignored for `--format raw`, which always includes meta as-is. |
 | `-o, --output [FILE]` | stdout | Write to a file. Omit the filename (`--output` alone) to auto-name as `signalk-stream-<server>-<timestamp>.<ext>`. Required for `--format feather`. |
 | `-f, --follow` | — | Keep streaming until interrupted (Ctrl-C) or `--count` is reached. Without this, print the next message then exit. |
 | `-n, --count N` | 1 without `--follow`, unlimited with it | Number of delta messages to output |
@@ -453,7 +468,7 @@ default-policy updates alongside your explicit subscription.
 
 #### Output formats
 
-**csv** / **json**: `timestamp, context, source, path, value` — one row per `path`/`value` pair in each delta's updates, written incrementally as messages arrive. Structured values (e.g. `navigation.position`) are JSON-encoded in the `value` column.
+**csv** / **json**: `timestamp, context, source, path, value` — one row per `path`/`value` pair in each delta's updates, written incrementally as messages arrive. Structured values (e.g. `navigation.position`) are JSON-encoded in the `value` column. With `--include-meta`, a `kind` column (`value`/`meta`) is inserted before `value`, and `meta` entries (units, description, zones, etc. — also JSON-encoded) are included as rows too; without it, `meta` entries are silently dropped from csv/json/feather (they're still present in `raw`).
 
 **raw**: the exact delta message JSON as received from the server, one message per line.
 
