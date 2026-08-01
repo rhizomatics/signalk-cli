@@ -43,6 +43,10 @@ Use `uv` to run without installing the module permanently, for example:
 uv run --with signalk-cli signalk_cli.history list-providers
 ```
 
+```bash
+uv run --with signalk-cli signalk_cli.stream deltas navigation.position --follow
+```
+
 ## Running
 
 Run via `python -m signalk_cli.history <command>` or `python -m signalk_cli.stream <command>` or without installing the module with `uv run --with signalk-cli signalk_cli.history <command>`.
