@@ -1,0 +1,92 @@
+site_name: SignalK CLI
+site_url: https://signalk-cli.rhizomatics.org.uk
+site_description: Command line access to SignalK APIs and streaming data
+
+repo_name: rhizomatics/signalk-cli
+repo_url: https://github.com/rhizomatics/signalk-cli
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  highlightjs: true
+  logo: docs/assets/images/logo-256.png
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - content.action.edit
+    - content.action.view
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate 
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - toc.integrate
+    - search.suggest
+    - search
+    - search.share
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/rhizomatics
+
+plugins:
+  - search
+  - htmlproofer:
+      skip_downloads: True
+  - autorefs
+  - pagetree
+  - optimize
+  - tags:
+      tags: false
+  - meta-descriptions
+  - minify:
+      minify_html: true
+  - coverage:
+      page_path: developer/coverage
+      html_report_dir: htmlcov
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - pymdownx.blocks.caption
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - smarty
+  - toc:
+      permalink: true
+  - sane_lists
+  - pymdownx.snippets:
+      check_paths: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn 
+
+not_in_nav: |
+  de/
+  es/
+  fr/
+  hi/
+  it/
+  ja/
+  nl/
+  pl/
+  pt/
+  zh-Hans/

@@ -43,6 +43,19 @@ dev = [
     "codespell"
 ]
 
+docs=[
+    "mkdocs<2.0.0",
+    "mkdocs-material[imaging]",
+    "mkdocs-minify-plugin",
+    "mkdocs-autorefs",
+    "mkdocs-pagetree-plugin",
+    "mkdocs-coverage",
+    "pymdown-extensions",
+    "mkdocs-meta-descriptions-plugin",
+    "pngquant",
+    "mkdocs-htmlproofer-plugin",
+]
+
 [project.urls]
 Homepage = "https://github.com/rhizomatics/signalk-cli"
 Repository = "https://github.com/rhizomatics/signalk-cli"

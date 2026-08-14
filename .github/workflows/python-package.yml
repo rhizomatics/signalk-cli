@@ -30,5 +30,12 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: uv build
 
+    - name: Mkdocs
+      run:  |
+        git pull
+        uv sync --dev --group docs
+        sudo apt-get install pngquant
+        uv run mkdocs gh-deploy
+
 
 

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>SignalK CLI</title>
+  <defs>
+    <radialGradient id="sky" cx="38%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="#0f2f45"/>
+      <stop offset="60%" stop-color="#0a2436"/>
+      <stop offset="100%" stop-color="#071a28"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8c27a"/>
+      <stop offset="45%" stop-color="#b98a3f"/>
+      <stop offset="100%" stop-color="#8a611f"/>
+    </linearGradient>
+    <linearGradient id="terminalBar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#051620"/>
+      <stop offset="100%" stop-color="#020d15"/>
+    </linearGradient>
+    <linearGradient id="sail" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f4f7f6"/>
+      <stop offset="100%" stop-color="#cfd9d8"/>
+    </linearGradient>
+    <clipPath id="discClip">
+      <circle cx="256" cy="256" r="222"/>
+    </clipPath>
+  </defs>
+
+  <!-- porthole rim -->
+  <circle cx="256" cy="256" r="248" fill="url(#rim)"/>
+  <circle cx="256" cy="256" r="224" fill="#07131d" opacity="0.35"/>
+
+  <!-- rivets -->
+  <g fill="#6b4a1a" opacity="0.55" transform="translate(0,2.5)">
+    <circle cx="256.0" cy="22.0" r="6"/>
+    <circle cx="345.5" cy="39.8" r="6"/>
+    <circle cx="421.5" cy="90.5" r="6"/>
+    <circle cx="472.2" cy="166.5" r="6"/>
+    <circle cx="490.0" cy="256.0" r="6"/>
+    <circle cx="472.2" cy="345.5" r="6"/>
+    <circle cx="421.5" cy="421.5" r="6"/>
+    <circle cx="345.5" cy="472.2" r="6"/>
+    <circle cx="256.0" cy="490.0" r="6"/>
+    <circle cx="166.5" cy="472.2" r="6"/>
+    <circle cx="90.5" cy="421.5" r="6"/>
+    <circle cx="39.8" cy="345.5" r="6"/>
+    <circle cx="22.0" cy="256.0" r="6"/>
+    <circle cx="39.8" cy="166.5" r="6"/>
+    <circle cx="90.5" cy="90.5" r="6"/>
+    <circle cx="166.5" cy="39.8" r="6"/>
+  </g>
+  <g fill="#f0d9a4">
+    <circle cx="256.0" cy="22.0" r="6"/>
+    <circle cx="345.5" cy="39.8" r="6"/>
+    <circle cx="421.5" cy="90.5" r="6"/>
+    <circle cx="472.2" cy="166.5" r="6"/>
+    <circle cx="490.0" cy="256.0" r="6"/>
+    <circle cx="472.2" cy="345.5" r="6"/>
+    <circle cx="421.5" cy="421.5" r="6"/>
+    <circle cx="345.5" cy="472.2" r="6"/>
+    <circle cx="256.0" cy="490.0" r="6"/>
+    <circle cx="166.5" cy="472.2" r="6"/>
+    <circle cx="90.5" cy="421.5" r="6"/>
+    <circle cx="39.8" cy="345.5" r="6"/>
+    <circle cx="22.0" cy="256.0" r="6"/>
+    <circle cx="39.8" cy="166.5" r="6"/>
+    <circle cx="90.5" cy="90.5" r="6"/>
+    <circle cx="166.5" cy="39.8" r="6"/>
+  </g>
+
+  <!-- main disc -->
+  <circle cx="256" cy="256" r="222" fill="url(#sky)"/>
+
+  <g clip-path="url(#discClip)">
+    <!-- stars -->
+    <g fill="#cfe8ea" opacity="0.7">
+      <circle cx="150" cy="95" r="2.2"/>
+      <circle cx="320" cy="80" r="1.8"/>
+      <circle cx="360" cy="130" r="2.2"/>
+      <circle cx="120" cy="150" r="1.6"/>
+      <circle cx="200" cy="70" r="1.6"/>
+    </g>
+
+    <!-- waves -->
+    <path d="M34,336 Q90,318 146,336 T258,336 T370,336 T482,336 V420 H34 Z" fill="#12505a" opacity="0.55"/>
+    <path d="M34,352 Q90,332 146,352 T258,352 T370,352 T482,352 V420 H34 Z" fill="#0d3f47" opacity="0.75"/>
+
+    <!-- boat -->
+    <g>
+      <!-- mast -->
+      <rect x="253" y="118" width="4.5" height="192" fill="#e7e2d6"/>
+      <!-- mainsail -->
+      <path d="M257,128 L257,296 L336,282 Z" fill="url(#sail)" stroke="#0a2436" stroke-width="1.5" stroke-opacity="0.25"/>
+      <!-- jib -->
+      <path d="M253,160 L253,290 L186,278 Z" fill="#b9c8c6" stroke="#0a2436" stroke-width="1.5" stroke-opacity="0.25"/>
+      <!-- hull -->
+      <path d="M172,308 Q256,340 340,308 L322,332 Q256,352 190,332 Z" fill="#e7c27a"/>
+      <path d="M172,308 Q256,340 340,308 L336,316 Q256,346 176,316 Z" fill="#0a2436" opacity="0.25"/>
+    </g>
+
+    <!-- terminal bar -->
+    <rect x="20" y="368" width="472" height="140" fill="url(#terminalBar)"/>
+    <rect x="20" y="368" width="472" height="3" fill="#3fd0c9" opacity="0.8"/>
+
+    <text x="256" y="424" font-family="'SF Mono','Fira Code','Courier New',monospace" font-size="46" font-weight="700" fill="#3fe0c9" text-anchor="middle">&gt;_</text>
+    <text x="256" y="458" font-family="'SF Mono','Fira Code','Courier New',monospace" font-size="16" letter-spacing="1.5" fill="#8fb9bb" text-anchor="middle">SIGNALK-CLI</text>
+  </g>
+
+  <circle cx="256" cy="256" r="222" fill="none" stroke="#e8c27a" stroke-width="3" opacity="0.5"/>
+</svg>

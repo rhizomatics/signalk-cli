@@ -1,5 +1,18 @@
 # SignalK CLI
 
+[![Rhizomatics Open Source](https://img.shields.io/badge/rhizomatics%20open%20source-lightseagreen)](https://github.com/rhizomatics)
+
+[![PyPI - Version](https://img.shields.io/pypi/v/signalk-cli)](https://pypi.org/project/signalk-cli/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/rhizomatics/signalk-cli)
+[![Coverage](https://raw.githubusercontent.com/rhizomatics/signalk-cli/refs/heads/badges/badges/coverage.svg)](https://signalk-cli.rhizomatics.org.uk/developer/coverage/)
+![Tests](https://raw.githubusercontent.com/rhizomatics/signalk-cli/refs/heads/badges/badges/tests.svg)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/rhizomatics/signalk-cli/main.svg)](https://results.pre-commit.ci/latest/github/rhizomatics/signalk-cli/main)
+[![Publish Python 🐍 distribution 📦 to PyPI and TestPyPI](https://github.com/rhizomatics/updatsignalk-clies2mqtt/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/rhizomatics/signalk-cli/actions/workflows/pypi-publish.yml)
+[![Github Deploy](https://github.com/rhizomatics/signalk-cli/actions/workflows/python-package.yml/badge.svg?branch=main)](https://github.com/rhizomatics/signalk-cli/actions/workflows/python-package.yml)
+[![CodeQL](https://github.com/rhizomatics/signalk-cli/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rhizomatics/signalk-cli/actions/workflows/github-code-scanning/codeql)
+[![Dependabot Updates](https://github.com/rhizomatics/signalk-cli/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/rhizomatics/signalk-cli/actions/workflows/dependabot/dependabot-updates)
+[![boat tech directory](https://boat-tech-directory.rhizomatics.org.uk/images/badge.svg)](https://boat-tech-directory.rhizomatics.org.uk)
+
 Query and explore NMEA and other boat data from SignalK APIs using the command line, and export data as CSV, Apache Arrow Feather, or JSON.
 
 APIs supported:
