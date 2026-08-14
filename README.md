@@ -17,18 +17,23 @@ Query and explore NMEA and other boat data from SignalK APIs using the command l
 
 APIs supported:
 
-* [SignalK v2 History API](https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html). Commands available:
-  - list-paths
-  - list-providers
-  - list-contexts
-  - query
-  - cardinality
-* [SignalK v1 Streaming API](https://signalk.org/specification/1.8.2/doc/streaming_api.html). Commands available:
-  - deltas
+### [SignalK v2 History API](https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html). 
+
+- Commands available:
+    - `list-paths`
+    - `list-providers`
+    - `list-contexts`
+    - `query`
+    - `cardinality`
+
+### [SignalK v1 Streaming API](https://signalk.org/specification/1.8.2/doc/streaming_api.html). 
+
+- Commands available:
+    - `deltas`
 
 ## Installation
 
-`signalk-cli` is published to PyPi at https://pypi.org/project/signalk-cli/
+`signalk-cli` is published to [PyPi](https://pypi.org/project/signalk-cli/)
 
 Python is required to run this, version 3.13 or above. [uv](https://docs.astral.sh/uv/) is the recommended way to install the package ( and can install Python ) but is not required.
 
@@ -103,6 +108,7 @@ python -m signalk_cli.history query [OPTIONS] PATH...
 ```
 
 **PATH** arguments may be:
+
 - **Literal paths** — e.g. `navigation.speedOverGround`
 - **Regex / glob patterns** — any argument containing metacharacters (`*`, `.`, `[`, `(`, etc.) is matched against the server's `/paths` endpoint. Bare `*` is treated as a glob wildcard.
 - **Inline path specs** — `path:method` or `path:method:param`, e.g. `navigation.speedOverGround:sma:5`. These pass through to the server unchanged.

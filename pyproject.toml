@@ -39,6 +39,7 @@ dev = [
     "pytest-xdist",
     "mypy",
     "coverage",
+    "genbadge[all]",
     "icdiff",
     "codespell"
 ]

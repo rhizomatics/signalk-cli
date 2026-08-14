@@ -4,6 +4,7 @@ __pycache__/
 build/
 dist/
 site/
+junit/
 wheels/
 *.egg-info
 .mypy_cache/
