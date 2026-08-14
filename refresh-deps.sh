@@ -1,4 +1,5 @@
 #!/bin/bash
+git pull
 echo "Upgrading uv ..."
 uv self update
 echo "Upgrading uv deps ..."
