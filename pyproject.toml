@@ -81,7 +81,6 @@ line-ending = "auto"
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
-asyncio_mode = "auto"
 testpaths = [
     "tests",
 ]
