@@ -58,7 +58,7 @@ docs=[
 ]
 
 [project.urls]
-Homepage = "https://github.com/rhizomatics/signalk-cli"
+Homepage = "https://signalk-cli.rhizomatics.org.uk"
 Repository = "https://github.com/rhizomatics/signalk-cli"
 Issues="https://github.com/rhizomatics/signalk-cli/issues"
 Changelog="https://github.com/rhizomatics/signalk-cli/blob/main/CHANGELOG.md"
