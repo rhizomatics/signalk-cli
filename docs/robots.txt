@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://signalk-cli.rhizomatics.org.uk/sitemap.xml
