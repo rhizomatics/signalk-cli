@@ -50,7 +50,7 @@ repos:
           - --show-error-context
           - --follow-untyped-imports
         additional_dependencies:
-          - pyarrow
+          - pyarrow-stubs
           - click
           - niquests
           - pytest
