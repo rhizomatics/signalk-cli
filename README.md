@@ -7,7 +7,7 @@
 [![Coverage](https://raw.githubusercontent.com/rhizomatics/signalk-cli/refs/heads/badges/badges/coverage.svg)](https://signalk-cli.rhizomatics.org.uk/developer/coverage/)
 ![Tests](https://raw.githubusercontent.com/rhizomatics/signalk-cli/refs/heads/badges/badges/tests.svg)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/rhizomatics/signalk-cli/main.svg)](https://results.pre-commit.ci/latest/github/rhizomatics/signalk-cli/main)
-[![Publish Python 🐍 distribution 📦 to PyPI and TestPyPI](https://github.com/rhizomatics/updatsignalk-clies2mqtt/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/rhizomatics/signalk-cli/actions/workflows/pypi-publish.yml)
+[![Publish Python 🐍 distribution 📦 to PyPI and TestPyPI](https://github.com/rhizomatics/signalk-cli/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/rhizomatics/signalk-cli/actions/workflows/pypi-publish.yml)
 [![Github Deploy](https://github.com/rhizomatics/signalk-cli/actions/workflows/python-package.yml/badge.svg?branch=main)](https://github.com/rhizomatics/signalk-cli/actions/workflows/python-package.yml)
 [![CodeQL](https://github.com/rhizomatics/signalk-cli/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rhizomatics/signalk-cli/actions/workflows/github-code-scanning/codeql)
 [![Dependabot Updates](https://github.com/rhizomatics/signalk-cli/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/rhizomatics/signalk-cli/actions/workflows/dependabot/dependabot-updates)
@@ -17,7 +17,7 @@ Query and explore NMEA and other boat data from SignalK APIs using the command l
 
 APIs supported:
 
-* [SignalK v2 History API](https://signalk.org/https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html). Commands available:
+* [SignalK v2 History API](https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html). Commands available:
   - list-paths
   - list-providers
   - list-contexts
