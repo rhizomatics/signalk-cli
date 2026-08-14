@@ -111,6 +111,10 @@ ignore-words-list="hass,referer,uint"
 [tool.mypy]
 mypy_path=["./src"]
 
+[[tool.mypy.overrides]]
+module = "pyarrow.*"
+ignore_missing_imports = true
+
 [tool.uv]
 compile-bytecode = true
 managed = true
