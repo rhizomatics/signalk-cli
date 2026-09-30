@@ -1,7 +1,7 @@
 [project]
 name = "signalk-cli"
-version = "2.2.1"
-description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather"
+version = "3.0.0"
+description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather from command line or as a Python API"
 readme = "README.md"
 requires-python = ">=3.13"
 license="Apache-2.0"
@@ -47,7 +47,10 @@ dev = [
     "coverage",
     "genbadge[all]",
     "icdiff",
-    "codespell"
+    "codespell",
+    "polars>=1.44.2,<2.0.0",
+    "duckdb>=1.5.5,<2.0.0",
+    "pandas>=3.0.6,<4.0.0",
 ]
 
 docs=[
