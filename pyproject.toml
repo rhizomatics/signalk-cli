@@ -1,6 +1,6 @@
 [project]
 name = "signalk-cli"
-version = "2.2.0"
+version = "2.2.1"
 description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -11,7 +11,7 @@ authors = [
 
 keywords = ["signalk", "sailing", "marine", "nmea","boating"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Natural Language :: English",
     "Intended Audience :: Developers",
@@ -45,8 +45,8 @@ dev = [
 ]
 
 docs=[
-    "mkdocs<2.0.0",
-    "mkdocs-material[imaging]",
+    "properdocs",
+    "mkdocs-materialx[imaging]",
     "mkdocs-minify-plugin",
     "mkdocs-autorefs",
     "mkdocs-pagetree-plugin",
@@ -55,6 +55,7 @@ docs=[
     "mkdocs-meta-descriptions-plugin",
     "pngquant",
     "mkdocs-htmlproofer-plugin",
+    "mkdocs-llmstxt>=0.5.0,<0.6.0",
 ]
 
 [project.urls]
@@ -114,6 +115,10 @@ mypy_path=["./src"]
 [[tool.mypy.overrides]]
 module = "pyarrow.*"
 ignore_missing_imports = true
+
+[tool.ty.analysis]
+# optional `feather` extra
+allowed-unresolved-imports = ["pyarrow", "pyarrow.**"]
 
 [tool.uv]
 compile-bytecode = true

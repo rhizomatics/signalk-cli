@@ -7,7 +7,7 @@ repo_url: https://github.com/rhizomatics/signalk-cli
 edit_uri: edit/main/docs/
 
 theme:
-  name: material
+  name: materialx
   highlightjs: true
   logo: /assets/images/logo-256.png
   language: en
@@ -53,6 +53,17 @@ plugins:
   - coverage:
       page_path: developer/coverage
       html_report_dir: htmlcov
+  - llmstxt:
+      markdown_description: >-
+        Python CLI to query the SignalK v2 History API and v1 Streaming API,
+        exporting to CSV, JSON, JSON Lines or Apache Arrow Feather.
+        Installed as `signalk-cli`, run as `signalk_cli.history` and `signalk_cli.stream`.
+      full_output: llms-full.txt
+      sections:
+        Usage:
+          - index.md: Installation, host discovery, commands, options and examples
+        Release notes:
+          - changelog.md: Changes in each release
 
 markdown_extensions:
   - admonition

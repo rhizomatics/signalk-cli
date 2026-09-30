@@ -90,7 +90,7 @@ def test_api_error_extracts_message_key():
 def test_api_error_no_response():
     exc = MagicMock()
     exc.response = None
-    exc.__str__ = lambda self: "connection refused"
+    exc.__str__.return_value = "connection refused"
     assert api_error(exc) == "connection refused"
 
 

@@ -7,7 +7,11 @@ from pathlib import Path
 
 import click
 import niquests
-from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
+
+try:
+    from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
+except ImportError:  # slim/Pyodide installs ship without zeroconf
+    Zeroconf = None  # type: ignore[assignment,misc]
 
 CACHE_DIR = Path.home() / ".cache" / "signalk-cli"
 _SIGNALK_TYPE = "_signalk-ws._tcp.local."
@@ -33,6 +37,8 @@ def save_cached_host(host: str) -> None:
 
 def discover_host(timeout: float = 5.0) -> str | None:
     """Browse mDNS for a SignalK server and return its base URL, or None."""
+    if Zeroconf is None:
+        return None
     found: list[str] = []
 
     def _on_change(
@@ -119,6 +125,11 @@ def resolve_host(host: str | None, no_cache: bool = False) -> str:
         if cached:
             click.echo(f"Using cached host: {cached}", err=True)
             return cached
+    if Zeroconf is None:
+        raise click.UsageError(
+            "No host specified and mDNS discovery unavailable (zeroconf not "
+            "installed). Use --host or set SIGNALK_HOST."
+        )
     click.echo("No host specified — searching for SignalK via mDNS...", err=True)
     discovered = discover_host()
     if not discovered:

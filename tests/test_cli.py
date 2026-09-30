@@ -274,3 +274,16 @@ def test_list_contexts(runner, mocker):
     for ctx in contexts:
         assert ctx in result.output
     assert "2 context(s)" in result.output
+
+
+def test_resolve_host_without_zeroconf(monkeypatch):
+    import click
+    import pytest
+
+    from signalk_cli import net
+
+    monkeypatch.setattr(net, "Zeroconf", None)
+    assert net.discover_host() is None
+    assert net.resolve_host("boat.local") == "http://boat.local"
+    with pytest.raises(click.UsageError, match="zeroconf not installed"):
+        net.resolve_host(None, no_cache=True)

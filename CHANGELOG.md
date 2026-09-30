@@ -1,3 +1,8 @@
+# v2.2.1
+- `zeroconf` is now optional at runtime
+  - Allows pure python environments like Pyodide WASM to run, at the expense of automatic SignalK server discovery over mDNS
+- Minor dependency updates
+- Documentation switched to `properdocs` and `materialx`
 # v2.2.0
 - Streaming now supports `values` as an output format to only emit the delta values (only useful when emitting a single path )
 - Streaming allows filtering by source, e.g. `--source 'Teltonika.*'`

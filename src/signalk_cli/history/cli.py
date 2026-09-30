@@ -396,7 +396,9 @@ def query(
             )
 
         elif fmt == "raw":
-            raw_text = json.dumps(resp.json(), indent=indent) if pretty else resp.text
+            raw_text = (
+                json.dumps(resp.json(), indent=indent) if pretty else (resp.text or "")
+            )
             fh = _open_sink()
             try:
                 (fh or sys.stdout).write(raw_text)
