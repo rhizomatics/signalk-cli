@@ -9,7 +9,9 @@ authors = [
     { name = "jey burrows", email = "jrb@rhizomatics.org.uk" }
 ]
 
-keywords = ["signalk", "sailing", "marine", "nmea","boating"]
+keywords = ["signalk", "sailing", "marine", "boating",
+            "nmea",
+            "dataframe","cli","pyarrow","nanoarrow"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
