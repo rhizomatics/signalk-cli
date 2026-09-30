@@ -1,12 +1,7 @@
-"""Shared host discovery/caching and CLI option helpers for SignalK API clients."""
+"""SignalK server discovery (mDNS) and the on-disk host cache."""
 
-import contextlib
-import io
 import time
 from pathlib import Path
-
-import click
-import niquests
 
 try:
     from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
@@ -75,68 +70,3 @@ def normalise_host(host: str) -> str:
     if "://" not in host:
         return f"http://{host}"
     return host
-
-
-def api_error(exc: niquests.RequestException) -> str:
-    """Return the most informative message from an API error response."""
-    resp = getattr(exc, "response", None)
-    if resp is not None:
-        with contextlib.suppress(Exception):
-            body = resp.json()
-            return body.get("error") or body.get("message") or str(exc)
-    return str(exc)
-
-
-# ---------------------------------------------------------------------------
-# Shared Click option decorators
-# ---------------------------------------------------------------------------
-
-
-def host_option(f):
-    return click.option(
-        "--host",
-        default=None,
-        envvar="SIGNALK_HOST",
-        help="SignalK server base URL. http:// added if scheme omitted. "
-        "Discovered via mDNS if omitted.",
-    )(f)
-
-
-def bare_option(f):
-    return click.option(
-        "--bare",
-        is_flag=True,
-        help="Suppress all informational messages, outputting data only.",
-    )(f)
-
-
-def stderr_ctx(bare: bool) -> contextlib.AbstractContextManager:
-    return (
-        contextlib.redirect_stderr(io.StringIO()) if bare else contextlib.nullcontext()
-    )
-
-
-def resolve_host(host: str | None, no_cache: bool = False) -> str:
-    """Return a normalised host URL, discovering via mDNS if none provided."""
-    if host:
-        return normalise_host(host)
-    if not no_cache:
-        cached = get_cached_host()
-        if cached:
-            click.echo(f"Using cached host: {cached}", err=True)
-            return cached
-    if Zeroconf is None:
-        raise click.UsageError(
-            "No host specified and mDNS discovery unavailable (zeroconf not "
-            "installed). Use --host or set SIGNALK_HOST."
-        )
-    click.echo("No host specified — searching for SignalK via mDNS...", err=True)
-    discovered = discover_host()
-    if not discovered:
-        raise click.UsageError(
-            "No SignalK server found via mDNS. Use --host or set SIGNALK_HOST."
-        )
-    click.echo(f"Discovered: {discovered}", err=True)
-    if not no_cache:
-        save_cached_host(discovered)
-    return discovered

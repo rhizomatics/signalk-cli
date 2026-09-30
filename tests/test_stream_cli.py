@@ -1,6 +1,7 @@
 """Tests for stream/cli.py using Click's test runner and a mocked WebSocket."""
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 from click.testing import CliRunner
@@ -23,7 +24,10 @@ def runner():
 
 
 def _mock_open_stream(mocker, ws):
-    return mocker.patch("signalk_cli.stream.cli.open_stream", return_value=ws)
+    """Patch the WebSocket connection: the session's GET returns ws as its extension."""
+    resp = MagicMock()
+    resp.extension = ws
+    return mocker.patch("niquests.Session.get", return_value=resp)
 
 
 # ---------------------------------------------------------------------------
@@ -113,14 +117,14 @@ def test_subscribe_defaults_to_none(runner, mocker):
     ws = make_ws([json.dumps(DELTA_SINGLE_VALUE)])
     mock_open = _mock_open_stream(mocker, ws)
     runner.invoke(cli, ["deltas", HOST, "navigation.speedOverGround"])
-    assert mock_open.call_args[0][1] == "none"
+    assert mock_open.call_args.kwargs["params"]["subscribe"] == "none"
 
 
 def test_subscribe_defaults_to_none_without_paths_too(runner, mocker):
     ws = make_ws([json.dumps(DELTA_SINGLE_VALUE)])
     mock_open = _mock_open_stream(mocker, ws)
     runner.invoke(cli, ["deltas", HOST])
-    assert mock_open.call_args[0][1] == "none"
+    assert mock_open.call_args.kwargs["params"]["subscribe"] == "none"
 
 
 def test_subscribe_explicit_overrides_default(runner, mocker):
@@ -129,7 +133,7 @@ def test_subscribe_explicit_overrides_default(runner, mocker):
     runner.invoke(
         cli, ["deltas", HOST, "--subscribe=all", "navigation.speedOverGround"]
     )
-    assert mock_open.call_args[0][1] == "all"
+    assert mock_open.call_args.kwargs["params"]["subscribe"] == "all"
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +304,7 @@ def test_deltas_connection_error(runner, mocker):
     import niquests
 
     mocker.patch(
-        "signalk_cli.stream.cli.open_stream",
+        "niquests.Session.get",
         side_effect=niquests.RequestException("connection refused"),
     )
     result = runner.invoke(cli, ["deltas", HOST, "nav.sog"])
@@ -343,3 +347,44 @@ def test_deltas_feather_stdout_error(runner, mocker):
     assert result.exit_code != 0
     assert "feather" in result.output.lower()
     mock_open.assert_not_called()
+
+
+def test_deltas_feather_file_with_meta(runner, mocker, tmp_path):
+    feather = pytest.importorskip("pyarrow.feather")
+    ws = make_ws([json.dumps(DELTA_WITH_META), json.dumps(DELTA_SINGLE_VALUE)])
+    _mock_open_stream(mocker, ws)
+    out_file = tmp_path / "capture.feather"
+    result = runner.invoke(
+        cli, ["deltas", HOST, "--count=2", "--include-meta", f"--output={out_file}"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "2 message(s), 3 row(s)" in result.output
+    table = feather.read_table(out_file)
+    assert table.column("kind").to_pylist() == ["value", "meta", "value"]
+
+
+def test_deltas_connection_lost_midway_keeps_output(runner, mocker):
+    import niquests
+
+    ws = make_ws([json.dumps(DELTA_SINGLE_VALUE), niquests.ReadTimeout("timed out")])
+    _mock_open_stream(mocker, ws)
+    result = runner.invoke(cli, ["deltas", HOST, "--follow"])
+    assert result.exit_code == 0
+    assert "Stream connection lost: timed out" in result.output
+    assert "1 message(s), 1 row(s)" in result.output
+    ws.close.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("fmt", "suffix"),
+    [("csv", ".csv"), ("json", ".json"), ("raw", ".json"), ("values", ".txt")],
+)
+def test_deltas_auto_named_output(runner, mocker, monkeypatch, tmp_path, fmt, suffix):
+    _mock_open_stream(mocker, make_ws([json.dumps(DELTA_SINGLE_VALUE)]))
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(cli, ["deltas", HOST, f"--format={fmt}", "-o"])
+    assert result.exit_code == 0, result.output
+    files = list(tmp_path.iterdir())
+    assert len(files) == 1
+    assert files[0].name.startswith("signalk-stream-testserver-")
+    assert files[0].suffix == suffix

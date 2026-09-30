@@ -1,9 +1,11 @@
 """Click CLI for the SignalK v2 History API."""
 
+import contextlib
 import csv
 import json
 import re
 import sys
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -11,42 +13,21 @@ from urllib.parse import urlparse
 import click
 import niquests
 
-from ..net import bare_option, host_option, resolve_host, stderr_ctx
-from .history_api import (
-    HISTORY_BASE,
-    api_error,
-    apply_time_default,
-    expand_paths,
-    fetch_server_paths,
-    normalise_duration,
-    resolve_provider,
-)
+from .._arrow import FEATHER_EXTENSIONS, write_feather
+from .._cli import bare_option, host_option, resolve_host, stderr_ctx
+from ..errors import SignalKError, api_error
+from ._results import CARDINALITY_COLUMNS
+from ._time import TimeRange
+from .api import AGGREGATION_METHODS, HistoryClient, HistoryResult
 from .output import (
-    _POSITION_RE,
-    CARDINALITY_COLUMNS,
-    FEATHER_EXTENSIONS,
-    compute_cardinality,
+    cardinality_text,
     write_csv,
     write_csv_wide,
-    write_feather,
-    write_feather_wide,
     write_json,
     write_json_wide,
 )
 
 _AUTO_OUTPUT = "__auto_output__"
-
-AGGREGATION_METHODS = [
-    "average",
-    "min",
-    "max",
-    "first",
-    "last",
-    "mid",
-    "middle_index",
-    "sma",
-    "ema",
-]
 
 # ---------------------------------------------------------------------------
 # Shared option decorators
@@ -99,59 +80,42 @@ _bare_option = bare_option
 _stderr_ctx = stderr_ctx
 
 
-def _build_time_params(from_: str | None, to: str | None, duration: str | None) -> dict:
-    p: dict = {}
-    if from_:
-        p["from"] = from_
-    if to:
-        p["to"] = to
-    if duration:
-        p["duration"] = duration
-    return p
+def _client(
+    host, provider=None, no_cache=False, context="vessels.self"
+) -> HistoryClient:
+    return HistoryClient(
+        resolve_host(host, no_cache),
+        provider=provider,
+        context=context,
+        cache=not no_cache,
+    )
 
 
-def _build_path_specs(
-    paths: list[str],
-    aggregation: str | None,
-    samples: int | None,
-    alpha: float | None,
-) -> tuple[str, bool]:
-    """Build the comma-separated paths query param with aggregation suffixes.
+@contextlib.contextmanager
+def _exit_on_error(doing: str) -> Iterator[None]:
+    """Report a failed request as 'Error <doing>: <message>' and exit 1."""
+    try:
+        yield
+    except SignalKError as e:
+        click.echo(f"Error {doing}: {e}", err=True)
+        sys.exit(1)
+    except niquests.RequestException as e:  # failures mid-way through a streamed body
+        click.echo(f"Error {doing}: {api_error(e)}", err=True)
+        sys.exit(1)
 
-    Returns (query_string, wide_mode).  wide_mode is True when no aggregation
-    is given and no path contains an inline ':method' suffix — in that case
-    min/max/average are requested and the output uses wide columns.
-    """
-    has_inline = any(":" in p for p in paths)
 
-    if aggregation:
-        specs = []
-        for path in paths:
-            if ":" in path:
-                specs.append(path)  # inline spec passes through unchanged
-            else:
-                spec = f"{path}:{aggregation}"
-                if aggregation == "sma" and samples is not None:
-                    spec += f":{samples}"
-                elif aggregation == "ema" and alpha is not None:
-                    spec += f":{alpha}"
-                specs.append(spec)
-        return ",".join(specs), False
+def _echo_time(time_params: dict, width: int) -> None:
+    for label, key, missing in (
+        ("From:", "from", "(server default)"),
+        ("To:", "to", "(server default)"),
+        ("Duration:", "duration", "(not specified)"),
+    ):
+        click.echo(f"{label:<{width}}{time_params.get(key, missing)}", err=True)
 
-    if has_inline:
-        return ",".join(paths), False
 
-    # Default: wide mode.  Array-valued paths (e.g. navigation.position) don't
-    # support min/average/max aggregation, so request a single passthrough method
-    # instead; the output layer expands the array into named columns.
-    specs = []
-    for p in paths:
-        if _POSITION_RE.fullmatch(p):
-            specs.append(f"{p}:mid")
-        else:
-            for m in ("min", "average", "max"):
-                specs.append(f"{p}:{m}")
-    return ",".join(specs), True
+def _summary(table_paths, row_count: int) -> str:
+    unique = sorted(set(table_paths))
+    return f"{row_count} rows, {len(unique)} unique path(s): {', '.join(unique)}"
 
 
 # ---------------------------------------------------------------------------
@@ -268,20 +232,11 @@ def query(
       signalk_cli.history query --host 10.36.10.21 --from 2026-05-26T00:00:00Z --to 2026-05-27T00:00:00Z '*'
     """
     with _stderr_ctx(bare):
-        host = _resolve_host(host, no_cache)
-        base_url = host.rstrip("/") + HISTORY_BASE
-        provider = resolve_provider(host, base_url, provider, no_cache)
+        client = _client(host, provider, no_cache, context)
+        time = TimeRange(from_, to, duration).resolved()
+        time_params = time.params()
 
-        # Normalise date-component durations (P1D etc.) to explicit from/to timestamps
-        from_, to, duration = normalise_duration(duration, from_, to)
-        time_params = apply_time_default(_build_time_params(from_, to, duration))
-
-        # Determine output destination
-        if output == _AUTO_OUTPUT:
-            # Placeholder — filename generated after format is known
-            auto_name = True
-        else:
-            auto_name = False
+        auto_name = output == _AUTO_OUTPUT
 
         # Infer format from explicit output filename extension
         if fmt is None:
@@ -298,7 +253,9 @@ def query(
 
         # Generate auto-named file path now that format is known
         if auto_name:
-            server_name = urlparse(host).hostname or re.sub(r"[^\w.-]", "_", host)
+            server_name = urlparse(client.host).hostname or re.sub(
+                r"[^\w.-]", "_", client.host
+            )
             ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
             ext = (
                 ".feather"
@@ -318,139 +275,83 @@ def query(
                 "use --output FILE or --output to auto-name"
             )
 
-        click.echo(f"Server:      {host}", err=True)
-        click.echo(f"Provider:    {provider or '(none)'}", err=True)
+        click.echo(f"Server:      {client.host}", err=True)
+        click.echo(f"Provider:    {client.provider or '(none)'}", err=True)
         click.echo(f"Context:     {context}", err=True)
-        click.echo(
-            f"From:        {time_params.get('from', '(server default)')}", err=True
-        )
-        click.echo(
-            f"To:          {time_params.get('to', '(server default)')}", err=True
-        )
-        click.echo(
-            f"Duration:    {time_params.get('duration', '(not specified)')}", err=True
-        )
+        _echo_time(time_params, 13)
         click.echo(f"Resolution:  {resolution or '(server default)'}", err=True)
         click.echo(f"Format:      {fmt}", err=True)
 
-        try:
-            resolved = expand_paths(list(paths), base_url, time_params, provider)
-        except niquests.RequestException as e:
-            click.echo(f"Error resolving paths: {api_error(e)}", err=True)
-            sys.exit(1)
+        with _exit_on_error("resolving paths"):
+            resolved = client.expand_paths(list(paths), time)
 
         if not resolved:
             click.echo("No paths matched — nothing to query.", err=True)
             sys.exit(1)
 
-        path_query, wide_mode = _build_path_specs(resolved, aggregation, samples, alpha)
+        params, wide_mode = client.value_params(
+            resolved,
+            time,
+            aggregation=aggregation,
+            samples=samples,
+            alpha=alpha,
+            resolution=resolution,
+            expand=False,
+        )
         agg_label = aggregation or ("wide (min/max/average)" if wide_mode else "inline")
         click.echo(f"Aggregation: {agg_label}", err=True)
 
-        params: dict = {**time_params, "paths": path_query, "context": context}
-        if resolution:
-            params["resolution"] = resolution
-        if provider:
-            params["provider"] = provider
-
-        url = f"{base_url}/values"
-
         # raw + stdout + no pretty: stream response bytes directly
         if fmt == "raw" and write_to_stdout and not pretty:
-            try:
-                with niquests.get(url, params=params, timeout=60, stream=True) as resp:
-                    resp.raise_for_status()
-                    for chunk in resp.iter_content(
-                        chunk_size=65536, decode_unicode=True
-                    ):
-                        sys.stdout.write(chunk)
-                sys.stdout.write("\n")
-            except niquests.RequestException as e:
-                click.echo(f"Error fetching history: {api_error(e)}", err=True)
-                sys.exit(1)
+            with (
+                _exit_on_error("fetching history"),
+                client.fetch("values", params, stream=True) as resp,
+            ):
+                for chunk in resp.iter_content(chunk_size=65536, decode_unicode=True):
+                    sys.stdout.write(chunk)
+            sys.stdout.write("\n")
             return
 
-        try:
-            resp = niquests.get(url, params=params, timeout=60)
-            resp.raise_for_status()
-        except niquests.RequestException as e:
-            click.echo(f"Error fetching history: {api_error(e)}", err=True)
-            sys.exit(1)
+        with _exit_on_error("fetching history"):
+            resp = client.fetch("values", params)
 
         indent = 2 if pretty else None
 
-        def _open_sink():
-            if write_to_file:
-                return open(output, "w", newline="")
-            return None
-
         if fmt == "feather":
-            if wide_mode:
-                row_count, unique_paths = write_feather_wide(resp.json(), output)
-            else:
-                row_count, unique_paths = write_feather(resp.json(), output)
+            table = HistoryResult(resp.json(), wide=wide_mode).to_arrow()
+            write_feather(table, output)
             click.echo(f"Wrote {output}", err=True)
-            click.echo(
-                f"{row_count} rows, {len(unique_paths)} unique path(s): {', '.join(sorted(unique_paths))}",
-                err=True,
-            )
+            click.echo(_summary(table.to_pydict()["path"], table.num_rows), err=True)
+            return
 
-        elif fmt == "raw":
-            raw_text = (
+        if fmt == "raw":
+            text = (
                 json.dumps(resp.json(), indent=indent) if pretty else (resp.text or "")
             )
-            fh = _open_sink()
-            try:
-                (fh or sys.stdout).write(raw_text)
-                if not write_to_file:
-                    sys.stdout.write("\n")
-            finally:
-                if fh:
-                    fh.close()
             if write_to_file:
+                Path(output).write_text(text)
                 click.echo(f"Wrote {output}", err=True)
+            else:
+                sys.stdout.write(text + "\n")
+            return
 
-        elif fmt == "json":
-            result = resp.json()
-            fh = _open_sink()
-            try:
-                sink = fh or sys.stdout
-                if wide_mode:
-                    row_count, unique_paths = write_json_wide(
-                        result, sink, indent=indent
-                    )
-                else:
-                    row_count, unique_paths = write_json(result, sink, indent=indent)
+        result = resp.json()
+        with (
+            open(output, "w", newline="")
+            if write_to_file
+            else contextlib.nullcontext(sys.stdout)
+        ) as sink:
+            if fmt == "json":
+                writer = write_json_wide if wide_mode else write_json
+                row_count, unique_paths = writer(result, sink, indent=indent)
                 if not write_to_file:
-                    sys.stdout.write("\n")
-            finally:
-                if fh:
-                    fh.close()
-            if write_to_file:
-                click.echo(f"Wrote {output}", err=True)
-            click.echo(
-                f"{row_count} rows, {len(unique_paths)} unique path(s): {', '.join(sorted(unique_paths))}",
-                err=True,
-            )
-
-        else:  # csv
-            result = resp.json()
-            fh = _open_sink()
-            try:
-                sink = fh or sys.stdout
-                if wide_mode:
-                    row_count, unique_paths = write_csv_wide(result, sink, no_header)
-                else:
-                    row_count, unique_paths = write_csv(result, sink, no_header)
-            finally:
-                if fh:
-                    fh.close()
-            if write_to_file:
-                click.echo(f"Wrote {output}", err=True)
-            click.echo(
-                f"{row_count} rows, {len(unique_paths)} unique path(s): {', '.join(sorted(unique_paths))}",
-                err=True,
-            )
+                    sink.write("\n")
+            else:
+                writer = write_csv_wide if wide_mode else write_csv
+                row_count, unique_paths = writer(result, sink, no_header)
+        if write_to_file:
+            click.echo(f"Wrote {output}", err=True)
+        click.echo(_summary(unique_paths, row_count), err=True)
 
 
 # ---------------------------------------------------------------------------
@@ -509,57 +410,27 @@ def cardinality(
       signalk_cli.history cardinality --host 10.36.10.21 --duration PT1H '*'
     """
     with _stderr_ctx(bare):
-        host = _resolve_host(host, no_cache)
-        base_url = host.rstrip("/") + HISTORY_BASE
-        provider = resolve_provider(host, base_url, provider, no_cache)
+        client = _client(host, provider, no_cache, context)
+        time = TimeRange(from_, to, duration).resolved()
 
-        from_, to, duration = normalise_duration(duration, from_, to)
-        time_params = apply_time_default(_build_time_params(from_, to, duration))
-
-        click.echo(f"Server:      {host}", err=True)
-        click.echo(f"Provider:    {provider or '(none)'}", err=True)
+        click.echo(f"Server:      {client.host}", err=True)
+        click.echo(f"Provider:    {client.provider or '(none)'}", err=True)
         click.echo(f"Context:     {context}", err=True)
-        click.echo(
-            f"From:        {time_params.get('from', '(server default)')}", err=True
-        )
-        click.echo(
-            f"To:          {time_params.get('to', '(server default)')}", err=True
-        )
-        click.echo(
-            f"Duration:    {time_params.get('duration', '(not specified)')}", err=True
-        )
+        _echo_time(time.params(), 13)
         click.echo(f"Resolution:  {resolution or '(server default)'}", err=True)
 
-        try:
-            resolved = expand_paths(
-                list(paths) or ["*"], base_url, time_params, provider
-            )
-        except niquests.RequestException as e:
-            click.echo(f"Error resolving paths: {api_error(e)}", err=True)
-            sys.exit(1)
+        with _exit_on_error("resolving paths"):
+            resolved = client.expand_paths(list(paths) or ["*"], time)
 
         if not resolved:
             click.echo("No paths matched — nothing to query.", err=True)
             sys.exit(1)
 
-        params: dict = {
-            **time_params,
-            "paths": ",".join(resolved),
-            "context": context,
-        }
-        if resolution:
-            params["resolution"] = resolution
-        if provider:
-            params["provider"] = provider
-
-        try:
-            resp = niquests.get(f"{base_url}/values", params=params, timeout=60)
-            resp.raise_for_status()
-        except niquests.RequestException as e:
-            click.echo(f"Error fetching history: {api_error(e)}", err=True)
-            sys.exit(1)
-
-        stat_rows = compute_cardinality(resp.json())
+        with _exit_on_error("fetching history"):
+            stat_rows = [
+                cardinality_text(r)
+                for r in client.cardinality_rows(resolved, time, resolution=resolution)
+            ]
 
         if fmt == "json":
             click.echo(json.dumps(stat_rows, indent=2))
@@ -597,43 +468,25 @@ def cardinality(
 def list_paths(host, from_, to, duration, provider, no_cache, context, fmt, bare):
     """List paths that have data for the given time range."""
     with _stderr_ctx(bare):
-        host = _resolve_host(host, no_cache)
-        base_url = host.rstrip("/") + HISTORY_BASE
-        provider = resolve_provider(host, base_url, provider, no_cache)
-        time_params = apply_time_default(_build_time_params(from_, to, duration))
+        client = _client(host, provider, no_cache, context)
+        time = TimeRange(from_, to, duration).resolved()
 
-        click.echo(f"Server:   {host}", err=True)
-        click.echo(f"Provider: {provider or '(none)'}", err=True)
-        click.echo(f"From:     {time_params.get('from', '(server default)')}", err=True)
-        click.echo(f"To:       {time_params.get('to', '(server default)')}", err=True)
-        click.echo(
-            f"Duration: {time_params.get('duration', '(not specified)')}", err=True
-        )
+        click.echo(f"Server:   {client.host}", err=True)
+        click.echo(f"Provider: {client.provider or '(none)'}", err=True)
+        _echo_time(time.params(), 10)
 
-        if fmt == "raw":
-            params = {k: v for k, v in time_params.items() if v is not None}
-            if provider:
-                params["provider"] = provider
-            try:
-                resp = niquests.get(f"{base_url}/paths", params=params, timeout=30)
-                resp.raise_for_status()
-            except niquests.RequestException as e:
-                click.echo(f"Error fetching paths: {api_error(e)}", err=True)
-                sys.exit(1)
-            click.echo(resp.text)
+        with _exit_on_error("fetching paths"):
+            if fmt == "raw":
+                click.echo(client.fetch("paths", client.request_params(time)).text)
+                return
+            paths = client.paths(time)
+        if fmt == "json":
+            click.echo(json.dumps([{"path": p} for p in paths]))
         else:
-            try:
-                paths = fetch_server_paths(base_url, time_params, provider)
-            except niquests.RequestException as e:
-                click.echo(f"Error fetching paths: {api_error(e)}", err=True)
-                sys.exit(1)
-            if fmt == "json":
-                click.echo(json.dumps([{"path": p} for p in sorted(paths)]))
-            else:
-                click.echo("path")
-                for path in sorted(paths):
-                    click.echo(path)
-                click.echo(f"{len(paths)} path(s)", err=True)
+            click.echo("path")
+            for path in paths:
+                click.echo(path)
+            click.echo(f"{len(paths)} path(s)", err=True)
 
 
 # ---------------------------------------------------------------------------
@@ -655,32 +508,26 @@ def list_paths(host, from_, to, duration, provider, no_cache, context, fmt, bare
 def list_providers(host, fmt, bare):
     """List registered history providers."""
     with _stderr_ctx(bare):
-        host = _resolve_host(host)
-        base_url = host.rstrip("/") + HISTORY_BASE
-        click.echo(f"Server: {host}", err=True)
+        client = _client(host)
+        click.echo(f"Server: {client.host}", err=True)
 
-        try:
-            resp = niquests.get(f"{base_url}/_providers", timeout=10)
-            resp.raise_for_status()
-        except niquests.RequestException as e:
-            click.echo(f"Error fetching providers: {api_error(e)}", err=True)
-            sys.exit(1)
+        with _exit_on_error("fetching providers"):
+            if fmt == "raw":
+                click.echo(client.fetch("_providers").text)
+                return
+            providers = client.providers()
 
-        if fmt == "raw":
-            click.echo(resp.text)
+        if fmt == "json":
+            rows = [
+                {"provider": pid, **info} for pid, info in sorted(providers.items())
+            ]
+            click.echo(json.dumps(rows))
         else:
-            providers: dict = resp.json()
-            if fmt == "json":
-                rows = [
-                    {"provider": pid, **info} for pid, info in sorted(providers.items())
-                ]
-                click.echo(json.dumps(rows))
-            else:
-                writer = csv.writer(sys.stdout)
-                writer.writerow(["provider", "isDefault"])
-                for pid, info in sorted(providers.items()):
-                    writer.writerow([pid, info.get("isDefault", False)])
-                click.echo(f"{len(providers)} provider(s)", err=True)
+            writer = csv.writer(sys.stdout)
+            writer.writerow(["provider", "isDefault"])
+            for pid, info in sorted(providers.items()):
+                writer.writerow([pid, info.get("isDefault", False)])
+            click.echo(f"{len(providers)} provider(s)", err=True)
 
 
 # ---------------------------------------------------------------------------
@@ -704,38 +551,23 @@ def list_providers(host, fmt, bare):
 def list_contexts(host, from_, to, duration, provider, no_cache, fmt, bare):
     """List contexts that have historical data for the given time range."""
     with _stderr_ctx(bare):
-        host = _resolve_host(host, no_cache)
-        base_url = host.rstrip("/") + HISTORY_BASE
-        provider = resolve_provider(host, base_url, provider, no_cache)
-        time_params = apply_time_default(_build_time_params(from_, to, duration))
+        client = _client(host, provider, no_cache)
+        time = TimeRange(from_, to, duration).resolved()
 
-        click.echo(f"Server:   {host}", err=True)
-        click.echo(f"Provider: {provider or '(none)'}", err=True)
-        click.echo(f"From:     {time_params.get('from', '(server default)')}", err=True)
-        click.echo(f"To:       {time_params.get('to', '(server default)')}", err=True)
-        click.echo(
-            f"Duration: {time_params.get('duration', '(not specified)')}", err=True
-        )
+        click.echo(f"Server:   {client.host}", err=True)
+        click.echo(f"Provider: {client.provider or '(none)'}", err=True)
+        _echo_time(time.params(), 10)
 
-        params = {**time_params}
-        if provider:
-            params["provider"] = provider
+        with _exit_on_error("fetching contexts"):
+            if fmt == "raw":
+                click.echo(client.fetch("contexts", client.request_params(time)).text)
+                return
+            contexts = client.contexts(time)
 
-        try:
-            resp = niquests.get(f"{base_url}/contexts", params=params, timeout=30)
-            resp.raise_for_status()
-        except niquests.RequestException as e:
-            click.echo(f"Error fetching contexts: {api_error(e)}", err=True)
-            sys.exit(1)
-
-        if fmt == "raw":
-            click.echo(resp.text)
+        if fmt == "json":
+            click.echo(json.dumps([{"context": c} for c in contexts]))
         else:
-            contexts: list = resp.json()
-            if fmt == "json":
-                click.echo(json.dumps([{"context": c} for c in sorted(contexts)]))
-            else:
-                click.echo("context")
-                for ctx in sorted(contexts):
-                    click.echo(ctx)
-                click.echo(f"{len(contexts)} context(s)", err=True)
+            click.echo("context")
+            for ctx in contexts:
+                click.echo(ctx)
+            click.echo(f"{len(contexts)} context(s)", err=True)

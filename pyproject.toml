@@ -1,7 +1,7 @@
 [project]
 name = "signalk-cli"
-version = "2.2.1"
-description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather"
+version = "3.0.0"
+description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather from command line or as a Python API"
 readme = "README.md"
 requires-python = ">=3.13"
 license="Apache-2.0"
@@ -23,12 +23,18 @@ classifiers = [
 
 dependencies = [
     "click>=8.3.3",
+    "nanoarrow>=0.9.0,<1.0.0",
     "niquests[ws]>=2.28",
-    "zeroconf>=0.149.16,<0.152.0",
+    # Pyodide/WASM: niquests needs >=3.21 there, and zeroconf can't run (no raw sockets)
+    "niquests[ws]>=3.21.0; sys_platform == 'emscripten'",
+    "zeroconf>=0.149.16,<0.152.0; sys_platform != 'emscripten'",
 ]
 
 [project.optional-dependencies]
+# pyarrow, only needed to write Feather files from the CLI
 feather = ["pyarrow>=17.0"]
+# alias of feather
+arrow = ["pyarrow>=17.0"]
 [dependency-groups]
 dev = [
     "ruff>=0.16.0",
@@ -41,7 +47,10 @@ dev = [
     "coverage",
     "genbadge[all]",
     "icdiff",
-    "codespell"
+    "codespell",
+    "polars>=1.44.2,<2.0.0",
+    "duckdb>=1.5.5,<2.0.0",
+    "pandas>=3.0.6,<4.0.0",
 ]
 
 docs=[
@@ -56,6 +65,7 @@ docs=[
     "pngquant",
     "mkdocs-htmlproofer-plugin",
     "mkdocs-llmstxt>=0.5.0,<0.6.0",
+    "mkdocstrings[python]>=1.0.6,<2.0.0",
 ]
 
 [project.urls]
@@ -95,7 +105,7 @@ branch = true
 source = ["src"]
 
 [tool.coverage.report]
-fail_under=0
+fail_under=90
 
 [tool.coverage.xml]
 output="cov.xml"
@@ -113,7 +123,7 @@ ignore-words-list="hass,referer,uint"
 mypy_path=["./src"]
 
 [[tool.mypy.overrides]]
-module = "pyarrow.*"
+module = ["pyarrow.*", "nanoarrow.*"]
 ignore_missing_imports = true
 
 [tool.ty.analysis]

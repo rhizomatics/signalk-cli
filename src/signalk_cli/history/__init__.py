@@ -1,33 +1,25 @@
 """signalk_cli.history — Python client and CLI for the SignalK v2 History API."""
 
-from .history_api import (
+from .._arrow import ArrowTable
+from ..errors import SignalKError
+from ._time import TimeRange
+from .api import (
+    AGGREGATION_METHODS,
     HISTORY_BASE,
-    api_error,
-    apply_time_default,
-    expand_paths,
-    fetch_default_provider,
-    fetch_server_paths,
-    get_cached_provider,
-    normalise_host,
-    resolve_provider,
-    save_cached_provider,
+    HistoryClient,
+    HistoryResult,
+    build_path_specs,
+    match_paths,
 )
-from .output import extract_rows, write_csv, write_feather, write_json, write_json_wide
 
 __all__ = [
+    "AGGREGATION_METHODS",
     "HISTORY_BASE",
-    "api_error",
-    "apply_time_default",
-    "expand_paths",
-    "extract_rows",
-    "fetch_default_provider",
-    "fetch_server_paths",
-    "get_cached_provider",
-    "normalise_host",
-    "resolve_provider",
-    "save_cached_provider",
-    "write_csv",
-    "write_feather",
-    "write_json",
-    "write_json_wide",
+    "ArrowTable",
+    "HistoryClient",
+    "HistoryResult",
+    "SignalKError",
+    "TimeRange",
+    "build_path_specs",
+    "match_paths",
 ]

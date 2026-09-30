@@ -43,17 +43,16 @@ Python is required to run this, version 3.13 or above. [uv](https://docs.astral.
 
 For Apache Arrow Feather export, use the optional dependency: ```pip install 'signalk-cli[feather]'```
 
-### Pyodide / slim install
+### Pyodide / WebAssembly
 
-`zeroconf` (used only for mDNS host discovery) can't run in Pyodide, and is optional at runtime. Install without dependencies and add the rest explicitly:
+The same wheel installs in Pyodide (e.g. marimo in the browser). Platform markers skip `zeroconf`, which can't run there, and require `niquests>=3.21.0`:
 
 ```python
 import micropip
-await micropip.install(["click", "niquests[ws]>=3.21.0"])
-await micropip.install("signalk-cli", deps=False)
+await micropip.install("signalk-cli")
 ```
 
-Without `zeroconf`, the host must be given with `--host` or `SIGNALK_HOST` (or come from the cache).
+Without `zeroconf` there's no mDNS discovery, so the host must be given with `--host` or `SIGNALK_HOST` (or come from the cache).
 
 ### Local Copy
 
@@ -76,6 +75,20 @@ uv run --with signalk-cli signalk_cli.history list-providers
 ```bash
 uv run --with signalk-cli signalk_cli.stream deltas navigation.position --follow
 ```
+
+## Python library
+
+Everything the CLI does is also available from Python, returning tables that load straight into polars, pandas, pyarrow or DuckDB:
+
+```python
+from signalk_cli import HistoryClient, TimeRange
+import polars as pl
+
+with HistoryClient("http://boat.local:3000") as client:
+    df = pl.DataFrame(client.query(["navigation.*"], TimeRange(duration="P1D")))
+```
+
+See the [Python library guide](https://signalk-cli.rhizomatics.org.uk/library/) and API reference.
 
 ## Running
 
@@ -122,7 +135,7 @@ python -m signalk_cli.history query [OPTIONS] PATH...
 **PATH** arguments may be:
 
 - **Literal paths** — e.g. `navigation.speedOverGround`
-- **Regex / glob patterns** — any argument containing metacharacters (`*`, `.`, `[`, `(`, etc.) is matched against the server's `/paths` endpoint. Bare `*` is treated as a glob wildcard.
+- **Regex / glob patterns** — any argument containing a pattern character (`*`, `?`, `+`, `[`, `(`, `{`, `|`, `^`, `$` or `\`) is matched against the server's `/paths` endpoint. A `.` on its own doesn't count, so a plain dotted path is always literal. Bare `*` is treated as a glob wildcard.
 - **Inline path specs** — `path:method` or `path:method:param`, e.g. `navigation.speedOverGround:sma:5`. These pass through to the server unchanged.
 
 #### Options

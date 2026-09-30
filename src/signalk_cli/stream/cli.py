@@ -1,6 +1,5 @@
 """Click CLI for the SignalK v1 Streaming (delta) API."""
 
-import json
 import re
 import sys
 from datetime import UTC, datetime
@@ -8,25 +7,22 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import click
-import niquests
 
-from ..net import api_error, bare_option, host_option, resolve_host, stderr_ctx
-from .output import (
-    FEATHER_EXTENSIONS,
-    delta_matches_source,
-    extract_delta_rows,
-    write_csv_delta,
-    write_csv_header,
-    write_feather_rows,
-    write_json_delta,
-    write_values_delta,
-)
-from .stream_api import (
+from .._arrow import FEATHER_EXTENSIONS, write_feather
+from .._cli import bare_option, host_option, resolve_host, stderr_ctx
+from ..errors import SignalKError
+from .api import (
     SUBSCRIBE_POLICIES,
     SUBSCRIPTION_POLICIES,
-    build_subscribe_message,
-    iter_deltas,
-    open_stream,
+    DeltaRow,
+    StreamClient,
+    rows_to_arrow,
+)
+from .output import (
+    write_csv_header,
+    write_csv_rows,
+    write_json_rows,
+    write_values_rows,
 )
 
 _AUTO_OUTPUT = "__auto_output__"
@@ -222,9 +218,9 @@ def deltas(
           --source Teltonika --bare navigation.speedOverGround
     """
     with stderr_ctx(bare):
-        host = resolve_host(host, no_cache)
-        period_ms = int(period * 1000)
-        min_period_ms = int(min_period * 1000) if min_period is not None else None
+        client = StreamClient(
+            resolve_host(host, no_cache), context=context, subscribe=subscribe
+        )
 
         auto_name = output == _AUTO_OUTPUT
 
@@ -241,7 +237,9 @@ def deltas(
                 fmt = "csv"
 
         if auto_name:
-            server_name = urlparse(host).hostname or re.sub(r"[^\w.-]", "_", host)
+            server_name = urlparse(client.host).hostname or re.sub(
+                r"[^\w.-]", "_", client.host
+            )
             ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
             ext = (
                 ".feather"
@@ -263,7 +261,7 @@ def deltas(
                 "use --output FILE or --output to auto-name"
             )
 
-        click.echo(f"Server:      {host}", err=True)
+        click.echo(f"Server:      {client.host}", err=True)
         click.echo(f"Context:     {context}", err=True)
         click.echo(f"Subscribe:   {subscribe}", err=True)
         min_period_note = (
@@ -275,26 +273,23 @@ def deltas(
         click.echo(f"Format:      {fmt}", err=True)
 
         try:
-            ws = open_stream(host, subscribe, timeout=None if follow else 30)
-        except niquests.RequestException as e:
-            click.echo(f"Error connecting to stream: {api_error(e)}", err=True)
+            stream = client.open(
+                paths,
+                policy=policy,
+                period=period,
+                min_period=min_period,
+                timeout=None if follow else 30,
+            )
+        except SignalKError as e:
+            click.echo(f"Error connecting to stream: {e}", err=True)
             sys.exit(1)
-
-        subscribe_message = build_subscribe_message(
-            context,
-            list(paths),
-            period_ms=period_ms,
-            policy=policy,
-            min_period_ms=min_period_ms,
-        )
-        ws.send_payload(json.dumps(subscribe_message))
 
         effective_count = count if count is not None else (None if follow else 1)
 
         message_count = 0
         row_total = 0
         header_written = False
-        feather_rows: list[tuple[str, ...]] = []
+        feather_rows: list[DeltaRow] = []
         fh = (
             open(output, "w", newline="")  # noqa: SIM115
             if write_to_file and fmt != "feather"
@@ -302,44 +297,38 @@ def deltas(
         )
         sink = fh or sys.stdout
         try:
-            for raw, delta in iter_deltas(ws, effective_count):
+            for message in stream.messages(effective_count):
                 message_count += 1
+                if fmt == "raw":
+                    if message.matches_sources(source):
+                        click.echo(message.text, file=sink)
+                    continue
+                rows = message.rows(include_meta=include_meta, sources=source)
                 if fmt == "feather":
-                    feather_rows.extend(
-                        extract_delta_rows(
-                            delta, include_meta=include_meta, sources=source
-                        )
-                    )
+                    feather_rows.extend(rows)
                     row_total = len(feather_rows)
-                elif fmt == "raw":
-                    if delta_matches_source(delta, source):
-                        click.echo(raw, file=sink)
                 elif fmt == "json":
-                    row_total += write_json_delta(
-                        delta, sink, include_meta=include_meta, sources=source
-                    )
+                    row_total += write_json_rows(rows, sink, include_meta=include_meta)
                 elif fmt == "values":
-                    row_total += write_values_delta(
-                        delta, sink, include_meta=include_meta, sources=source
-                    )
+                    row_total += write_values_rows(rows, sink)
                 else:
                     if not header_written and not no_header:
                         write_csv_header(sink, include_meta=include_meta)
                         header_written = True
-                    row_total += write_csv_delta(
-                        delta, sink, include_meta=include_meta, sources=source
-                    )
+                    row_total += write_csv_rows(rows, sink, include_meta=include_meta)
         except KeyboardInterrupt:
             pass
-        except niquests.RequestException as e:
-            click.echo(f"Stream connection lost: {api_error(e)}", err=True)
+        except SignalKError as e:
+            click.echo(f"Stream connection lost: {e}", err=True)
         finally:
-            ws.close()
+            stream.close()
             if fh:
                 fh.close()
 
         if fmt == "feather":
-            write_feather_rows(feather_rows, output, include_meta=include_meta)
+            write_feather(
+                rows_to_arrow(feather_rows, include_meta=include_meta), output
+            )
 
         if write_to_file:
             click.echo(f"Wrote {output}", err=True)
