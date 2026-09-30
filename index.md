@@ -1,6 +1,6 @@
 # SignalK CLI
 
-Query and explore NMEA and other boat data from SignalK APIs using the command line, and export data as CSV, Apache Arrow Feather, or JSON.
+Query and explore NMEA and other boat data from SignalK APIs using the command line or the Python API. Export data as CSV, Apache Arrow Feather, or JSON or use as dataframes in scripts or data notebooks.
 
 APIs supported:
 
@@ -40,6 +40,8 @@ await micropip.install("signalk-cli")
 ```
 
 Without `zeroconf` there’s no mDNS discovery, so the host must be given with `--host` or `SIGNALK_HOST` (or come from the cache).
+
+See [signalk-datalab-plugin](https://github.com/rhizomatics/signalk-datalab-plugin) for a working example of this.
 
 ### Local Copy
 
