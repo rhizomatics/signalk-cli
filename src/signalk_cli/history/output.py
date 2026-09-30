@@ -4,15 +4,13 @@ import csv
 import json
 from typing import IO, Any
 
-from .._arrow import ArrowTable, _as_text
+from .._arrow import as_text
 from ._results import CARDINALITY_COLUMNS, long_rows, wide_rows
-
-FEATHER_EXTENSIONS = {".feather", ".arrow", ".fea"}
 
 
 def _text(v: Any) -> str:
     """CLI text for a value: JSON for objects/arrays, empty for null."""
-    return _as_text(v) or ""
+    return as_text(v) or ""
 
 
 # ---------------------------------------------------------------------------
@@ -74,23 +72,6 @@ def write_json_wide(
     ]
     sink.write(json.dumps(rows, indent=indent))
     return len(rows), set(paths)
-
-
-# ---------------------------------------------------------------------------
-# Feather
-# ---------------------------------------------------------------------------
-
-
-def write_feather(table: ArrowTable, output: str) -> None:
-    """Write a table to a Feather (Arrow IPC file) — needs pyarrow."""
-    try:
-        import pyarrow as pa
-        from pyarrow import feather
-    except ImportError:
-        raise ImportError(
-            "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"
-        ) from None
-    feather.write_feather(pa.table(table), output)
 
 
 # ---------------------------------------------------------------------------

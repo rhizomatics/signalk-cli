@@ -1,7 +1,7 @@
 """A small Arrow table built with nanoarrow, handed to dataframe libraries via the PyCapsule interface."""
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -9,12 +9,14 @@ import nanoarrow as na
 
 _TIMESTAMP = na.timestamp("us", timezone="UTC")
 
+FEATHER_EXTENSIONS = {".feather", ".arrow", ".fea"}
+
 
 def _is_number(v: object) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
-def _as_text(v: object) -> str | None:
+def as_text(v: object) -> str | None:
     if v is None or isinstance(v, str):
         return v
     if isinstance(v, (dict, list)):
@@ -41,7 +43,7 @@ def infer_column(values: Sequence[Any]) -> tuple[list, Any]:
         return [None if v is None else float(v) for v in values], na.float64()
     if all(isinstance(v, bool) for v in present):
         return list(values), na.bool_()
-    return [_as_text(v) for v in values], na.string()
+    return [as_text(v) for v in values], na.string()
 
 
 class ArrowTable:
@@ -72,8 +74,8 @@ class ArrowTable:
     @classmethod
     def from_rows(
         cls,
-        timestamps: Sequence[str | datetime],
-        columns: dict[str, Sequence[Any]],
+        timestamps: Sequence[str | datetime | None],
+        columns: Mapping[str, Sequence[Any]],
         *,
         text_columns: Sequence[str] = (),
         timestamp_name: str = "timestamp",
@@ -89,7 +91,7 @@ class ArrowTable:
         }
         for name, values in columns.items():
             if name in text_columns:
-                built[name] = ([_as_text(v) for v in values], na.string())
+                built[name] = ([as_text(v) for v in values], na.string())
             else:
                 built[name] = infer_column(values)
         return cls(built)
@@ -130,3 +132,15 @@ class ArrowTable:
 
     def __arrow_c_stream__(self, requested_schema=None):
         return na.ArrayStream(self._batch()).__arrow_c_stream__(requested_schema)
+
+
+def write_feather(table: ArrowTable, output: str) -> None:
+    """Write a table to a Feather (Arrow IPC file) — needs pyarrow."""
+    try:
+        import pyarrow as pa
+        from pyarrow import feather
+    except ImportError:
+        raise ImportError(
+            "pyarrow is required for Feather output: pip install 'signalk-cli[feather]'"
+        ) from None
+    feather.write_feather(pa.table(table), output)

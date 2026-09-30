@@ -3,15 +3,18 @@
 ## ✨ Enhancements
 - New Python API
   - All the functionality of the CLI now available as a Python API to use in your own scripts, apps or notebooks
-  -  History API: `signalk_cli.history.HistoryClient
+  -  History API: `signalk_cli.history.HistoryClient`
     - Returns tables that load straight into polars, pandas, pyarrow or DuckDB (via the small `nanoarrow` dependency; using Arrow PyCapsule interface so `pyarrow` not needed)
   - Wide table column names may change in future releases
+  - Streaming API (beta): `signalk_cli.stream.StreamClient`
+    - `open()` for a live `DeltaStream` of messages or rows, `collect()` for a table of the next N messages
 - Feather files from `query` now have typed columns (UTC timestamps, floats) instead of all text
+- Streaming Feather files now have typed columns (UTC timestamps, and float values where every value is a number)
 - `list-paths` and `list-contexts` now accept date durations such as `--duration P1D`, like `query`
 
 ## 🚨 Breaking changes
 - Plain dotted paths such as `navigation.speedOverGround` are now always literal; only `* ? + [ ( { | ^ $ \` make a pattern. Previously a `.` alone made a regex, so a path was looked up via `/paths`, matched as a substring, and dropped if the server had no data for it
-- Breaking: the undocumented `signalk_cli.history.history_api` module is gone; use `signalk_cli.history` instead
+- The undocumented `signalk_cli.history.history_api` and `signalk_cli.stream.stream_api` modules are gone; use `signalk_cli.history` and `signalk_cli.stream` instead
 ## 📝 Other changes
 ## ⚠️ Deprecated
 ## 📚 Documentation

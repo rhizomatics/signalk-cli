@@ -13,17 +13,16 @@ from urllib.parse import urlparse
 import click
 import niquests
 
+from .._arrow import FEATHER_EXTENSIONS, write_feather
 from .._cli import bare_option, host_option, resolve_host, stderr_ctx
 from ..errors import SignalKError, api_error
 from ._results import CARDINALITY_COLUMNS
 from ._time import TimeRange
 from .api import AGGREGATION_METHODS, HistoryClient, HistoryResult
 from .output import (
-    FEATHER_EXTENSIONS,
     cardinality_text,
     write_csv,
     write_csv_wide,
-    write_feather,
     write_json,
     write_json_wide,
 )

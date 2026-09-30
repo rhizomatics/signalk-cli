@@ -6,12 +6,12 @@ import json
 
 import pytest
 
+from signalk_cli._arrow import write_feather
 from signalk_cli.history.api import HistoryResult
 from signalk_cli.history.output import (
     cardinality_text,
     write_csv,
     write_csv_wide,
-    write_feather,
     write_json,
     write_json_wide,
 )

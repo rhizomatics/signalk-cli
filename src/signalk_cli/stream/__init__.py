@@ -1,21 +1,29 @@
 """signalk_cli.stream — Python client and CLI for the SignalK v1 Streaming (delta) API."""
 
-from .output import extract_delta_rows, write_csv_delta, write_json_delta
-from .stream_api import (
+from .._arrow import ArrowTable
+from ..errors import SignalKError
+from .api import (
     STREAM_PATH,
+    DeltaMessage,
+    DeltaRow,
+    DeltaStream,
+    StreamClient,
     build_subscribe_message,
-    iter_deltas,
-    open_stream,
+    rows_to_arrow,
+    source_matches,
     to_ws_url,
 )
 
 __all__ = [
     "STREAM_PATH",
+    "ArrowTable",
+    "DeltaMessage",
+    "DeltaRow",
+    "DeltaStream",
+    "SignalKError",
+    "StreamClient",
     "build_subscribe_message",
-    "extract_delta_rows",
-    "iter_deltas",
-    "open_stream",
+    "rows_to_arrow",
+    "source_matches",
     "to_ws_url",
-    "write_csv_delta",
-    "write_json_delta",
 ]
