@@ -6,7 +6,14 @@ Python CLI to query the SignalK v2 History API and v1 Streaming API, exporting t
 
 ## Usage
 
-- [SignalK CLI](https://signalk-cli.rhizomatics.org.uk/index.md): Installation, host discovery, commands, options and examples
+- [Home](https://signalk-cli.rhizomatics.org.uk/index.md): Installation, host discovery, commands, options and examples
+
+## Python library
+
+- [Python library](https://signalk-cli.rhizomatics.org.uk/library/index.md): Using signalk-cli from Python — history and streaming clients, tables, errors
+- [History API](https://signalk-cli.rhizomatics.org.uk/api/history/index.md): HistoryClient, HistoryResult, TimeRange reference
+- [Streaming API](https://signalk-cli.rhizomatics.org.uk/api/stream/index.md): StreamClient, DeltaStream, DeltaMessage, DeltaRow reference
+- [Tables, errors and discovery](https://signalk-cli.rhizomatics.org.uk/api/common/index.md): ArrowTable, SignalKError, discover_host reference
 
 ## Release notes
 

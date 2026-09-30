@@ -11,6 +11,26 @@
         <changefreq>daily</changefreq>
     </url>
     <url>
+        <loc>https://signalk-cli.rhizomatics.org.uk/library/</loc>
+        <lastmod>2026-09-30</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://signalk-cli.rhizomatics.org.uk/api/common/</loc>
+        <lastmod>2026-09-30</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://signalk-cli.rhizomatics.org.uk/api/history/</loc>
+        <lastmod>2026-09-30</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://signalk-cli.rhizomatics.org.uk/api/stream/</loc>
+        <lastmod>2026-09-30</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
         <loc>https://signalk-cli.rhizomatics.org.uk/developer/coverage/</loc>
         <lastmod>2026-09-30</lastmod>
         <changefreq>daily</changefreq>

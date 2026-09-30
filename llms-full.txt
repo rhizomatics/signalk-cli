@@ -38,17 +38,16 @@ Python is required to run this, version 3.13 or above. [uv](https://docs.astral.
 
 For Apache Arrow Feather export, use the optional dependency: `pip install 'signalk-cli[feather]'`
 
-### Pyodide / slim install
+### Pyodide / WebAssembly
 
-`zeroconf` (used only for mDNS host discovery) can’t run in Pyodide, and is optional at runtime. Install without dependencies and add the rest explicitly:
+The same wheel installs in Pyodide (e.g. marimo in the browser). Platform markers skip `zeroconf`, which can’t run there, and require `niquests>=3.21.0`:
 
 ```python
 import micropip
-await micropip.install(["click", "niquests[ws]>=3.21.0"])
-await micropip.install("signalk-cli", deps=False)
+await micropip.install("signalk-cli")
 ```
 
-Without `zeroconf`, the host must be given with `--host` or `SIGNALK_HOST` (or come from the cache).
+Without `zeroconf` there’s no mDNS discovery, so the host must be given with `--host` or `SIGNALK_HOST` (or come from the cache).
 
 ### Local Copy
 
@@ -71,6 +70,20 @@ uv run --with signalk-cli signalk_cli.history list-providers
 ```bash
 uv run --with signalk-cli signalk_cli.stream deltas navigation.position --follow
 ```
+
+## Python library
+
+Everything the CLI does is also available from Python, returning tables that load straight into polars, pandas, pyarrow or DuckDB:
+
+```python
+from signalk_cli import HistoryClient, TimeRange
+import polars as pl
+
+with HistoryClient("http://boat.local:3000") as client:
+    df = pl.DataFrame(client.query(["navigation.*"], TimeRange(duration="P1D")))
+```
+
+See the [Python library guide](https://signalk-cli.rhizomatics.org.uk/library/) and API reference.
 
 ## Running
 
@@ -115,7 +128,7 @@ python -m signalk_cli.history query [OPTIONS] PATH...
 **PATH** arguments may be:
 
 - **Literal paths** — e.g. `navigation.speedOverGround`
-- **Regex / glob patterns** — any argument containing metacharacters (`*`, `.`, `[`, `(`, etc.) is matched against the server’s `/paths` endpoint. Bare `*` is treated as a glob wildcard.
+- **Regex / glob patterns** — any argument containing a pattern character (`*`, `?`, `+`, `[`, `(`, `{`, `|`, `^`, `$` or `\`) is matched against the server’s `/paths` endpoint. A `.` on its own doesn’t count, so a plain dotted path is always literal. Bare `*` is treated as a glob wildcard.
 - **Inline path specs** — `path:method` or `path:method:param`, e.g. `navigation.speedOverGround:sma:5`. These pass through to the server unchanged.
 
 #### Options
@@ -541,36 +554,909 @@ Typical combinations:
 ## Default caching
 
 The default history provider is fetched from the server once and cached per host in `~/.cache/signalk-history-cli/`. Pass `--no-cache` to force a fresh lookup, or `--provider <id>` to target a specific provider explicitly.
+# Python library
+
+# Python library
+
+Everything the CLI does is available from Python, for scripts, apps and notebooks (including [marimo](https://marimo.io) and Jupyter in the browser via Pyodide).
+
+```bash
+pip install signalk-cli
+```
+
+Queries return an ArrowTable, which loads directly into any Arrow-aware dataframe library through the [Arrow PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html). signalk-cli itself only depends on the small `nanoarrow` package for this, not on pyarrow.
+
+## History
+
+```python
+from signalk_cli import HistoryClient, TimeRange
+import polars as pl
+
+with HistoryClient("http://boat.local:3000") as client:
+    print(client.paths(TimeRange(duration="P1D")))
+
+    table = client.query(
+        ["navigation.speedOverGround", "environment.wind.*"],
+        TimeRange(duration="P1D"),
+        resolution="5m",
+    )
+
+df = pl.DataFrame(table)
+```
+
+The same table works with other libraries:
+
+```python
+import pandas as pd
+
+df = pd.DataFrame.from_arrow(table)  # pandas 3.0+
+```
+
+```python
+import pyarrow as pa
+
+t = pa.table(table)
+```
+
+```python
+import duckdb
+
+rel = duckdb.from_arrow(table)
+duckdb.sql("select path, avg(avg_value) from rel group by path")
+```
+
+### Table shapes
+
+Both shapes have one row per timestamp and path, with a UTC `timestamp` column and a `path` column.
+
+| Shape    | When                                                                      | Value columns                                                                                                                     |
+| -------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **wide** | No aggregation given (the default)                                        | `min_value`, `avg_value`, `max_value` for numbers; `longitude`/`latitude` for positions; `value_0`, `value_1`, … for other arrays |
+| **long** | An `aggregation`, or inline specs like `navigation.speedOverGround:sma:5` | `value`: float when every value is a number, otherwise text (objects and arrays as JSON)                                          |
+
+Pass `shape="long"` or `shape="wide"` to query() to choose.
+
+Wide column names may change
+
+The wide shape’s column names aren’t settled yet and may change in a future release.
+
+### Paths and patterns
+
+Paths are sent as given unless they contain a pattern character (`* ? + [ ] ( ) { } | ^ $ \`), in which case they’re matched against the paths the server has data for. Globs (`navigation.*`) and Python regular expressions (`speed(OverGround|ThroughWater)`) both work.
+
+### Time ranges
+
+TimeRange takes any of `start`, `end` and `duration`, as ISO 8601 strings, datetimes, integer seconds or timedeltas. Date durations such as `P1D` are converted to explicit start and end times, since the server only accepts time-only durations. With no range, the last hour is used.
+
+### Statistics
+
+```python
+stats = client.cardinality(["navigation.*"], TimeRange(duration="PT6H"))
+```
+
+gives one row per path with distinct values, nulls, zeroes, and min/max/average.
+
+## Streaming (beta)
+
+```python
+from signalk_cli import StreamClient
+
+client = StreamClient("http://boat.local:3000")
+
+# The next 100 delta messages as a table
+table = client.collect(["navigation.*"], count=100, policy="instant")
+
+# Or live, row by row
+with client.open(["navigation.speedOverGround"], timeout=None) as stream:
+    for row in stream.rows():
+        print(row.timestamp, row.source, row.value)
+```
+
+Row values keep their JSON types. Filter by source with `sources=("Teltonika",)`, and include metadata entries (units, zones, …) with `include_meta=True`.
+
+## Errors and logging
+
+Failed requests raise SignalKError, carrying the server’s error message and HTTP `status_code`.
+
+Progress messages and warnings (such as a pattern matching no paths) go to the `signalk_cli` logger, which is silent unless your application configures logging:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+```
+
+## Pyodide / WebAssembly
+
+`micropip.install("signalk-cli")` installs everything needed; `zeroconf` is skipped there automatically. mDNS discovery isn’t available in the browser, so pass the server’s URL to the client.
+
+# History API reference
+
+Import from `signalk_cli.history` (or `signalk_cli` for the main classes).
+
+Python API for the SignalK v2 History API.
+
+Examples:
+
+```python
+from signalk_cli.history import HistoryClient, TimeRange
+with HistoryClient("http://boat.local:3000") as client:
+    table = client.query(["navigation.speedOverGround"], TimeRange(duration="PT1H"))
+import polars as pl
+df = pl.DataFrame(table)
+```
+
+## AGGREGATION_METHODS
+
+```python
+AGGREGATION_METHODS = (
+    "average",
+    "min",
+    "max",
+    "first",
+    "last",
+    "mid",
+    "middle_index",
+    "sma",
+    "ema",
+)
+```
+
+## HistoryClient
+
+```python
+HistoryClient(
+    host: str,
+    *,
+    provider: str | None = None,
+    context: str = "vessels.self",
+    session: Session | None = None,
+    cache: bool = False,
+    timeout: float = 60,
+)
+```
+
+Client for a SignalK server’s v2 History API.
+
+Parameters:
+
+- **`host`** (`str`) – Server URL, e.g. http://boat.local:3000 (http:// is added if there’s no scheme).
+- **`provider`** (`str | None`, default: `None` ) – History provider plugin id. Defaults to the server’s default provider, looked up on first use.
+- **`context`** (`str`, default: `'vessels.self'` ) – SignalK context to query, e.g. vessels.self.
+- **`session`** (`Session | None`, default: `None` ) – A niquests session to send requests with. One is created (and closed with the client) if not given.
+- **`cache`** (`bool`, default: `False` ) – Remember each server’s default provider on disk, under ~/.cache/signalk-cli, to save a request next time.
+- **`timeout`** (`float`, default: `60` ) – Seconds to wait for each response.
+
+Raises:
+
+- `SignalKError` – From any method, when a request fails.
+
+### provider
+
+```python
+provider: str | None
+```
+
+The provider used for requests: the one given, else the server’s default.
+
+The default is fetched once (or read from the disk cache if enabled). If it can’t be fetched, requests go without one and the server picks.
+
+### close
+
+```python
+close() -> None
+```
+
+Close the session, if the client created it.
+
+### fetch
+
+```python
+fetch(
+    endpoint: str,
+    params: dict | None = None,
+    *,
+    stream: bool = False,
+) -> niquests.Response
+```
+
+GET a History API endpoint (e.g. `"values"`, `"paths"`) and return the response.
+
+A low-level escape hatch for callers that want the raw response body; the other methods are usually more convenient.
+
+### providers
+
+```python
+providers() -> dict[str, dict[str, Any]]
+```
+
+Registered history providers, as `{id: {"isDefault": bool, ...}}`.
+
+### default_provider
+
+```python
+default_provider() -> str
+```
+
+The id of the server’s default history provider.
+
+### request_params
+
+```python
+request_params(
+    time: TimeRange | None = None, **extra: Any
+) -> dict[str, Any]
+```
+
+Query parameters for a request: the time range, provider, and any extras given.
+
+Useful with fetch(); `None` extras are left out.
+
+### contexts
+
+```python
+contexts(time: TimeRange | None = None) -> list[str]
+```
+
+Contexts (vessels, aircraft, …) with data in the time range, sorted.
+
+### paths
+
+```python
+paths(time: TimeRange | None = None) -> list[str]
+```
+
+Paths with data in the time range, sorted.
+
+### expand_paths
+
+```python
+expand_paths(
+    patterns: Sequence[str], time: TimeRange | None = None
+) -> list[str]
+```
+
+Expand glob/regex patterns to the matching paths with data in the time range.
+
+Only fetches the server’s path list if there’s a pattern to match. See match_paths() for the matching rules.
+
+### value_params
+
+```python
+value_params(
+    paths: Sequence[str],
+    time: TimeRange | None = None,
+    *,
+    aggregation: str | None = None,
+    samples: int | None = None,
+    alpha: float | None = None,
+    resolution: str | int | None = None,
+    context: str | None = None,
+    expand: bool = True,
+) -> tuple[dict[str, Any], bool]
+```
+
+The query parameters values() sends, and whether the result is wide.
+
+Useful with fetch() to get the raw response body. Arguments are as for values().
+
+### values
+
+```python
+values(
+    paths: Sequence[str],
+    time: TimeRange | None = None,
+    *,
+    aggregation: str | None = None,
+    samples: int | None = None,
+    alpha: float | None = None,
+    resolution: str | int | None = None,
+    context: str | None = None,
+    expand: bool = True,
+) -> HistoryResult
+```
+
+Fetch values for the given paths, as a HistoryResult.
+
+Parameters:
+
+- **`paths`** (`Sequence[str]`) – Paths, glob/regex patterns, or inline specs such as navigation.speedOverGround:sma:5.
+- **`time`** (`TimeRange | None`, default: `None` ) – Time range; defaults to the last hour.
+- **`aggregation`** (`str | None`, default: `None` ) – Method applied to each path without an inline spec, one of AGGREGATION_METHODS. If neither this nor inline specs are given, min/average/max are fetched (wide).
+- **`samples`** (`int | None`, default: `None` ) – Window size for sma.
+- **`alpha`** (`float | None`, default: `None` ) – Smoothing factor for ema.
+- **`resolution`** (`str | int | None`, default: `None` ) – Sample window, as seconds or an expression like 1m.
+- **`context`** (`str | None`, default: `None` ) – Overrides the client’s context for this request.
+- **`expand`** (`bool`, default: `True` ) – Expand patterns in paths first (see expand_paths()).
+
+Raises:
+
+- `ValueError` – If no paths are left to query after expansion.
+
+### query
+
+```python
+query(
+    paths: Sequence[str],
+    time: TimeRange | None = None,
+    *,
+    shape: Shape | None = None,
+    aggregation: str | None = None,
+    samples: int | None = None,
+    alpha: float | None = None,
+    resolution: str | int | None = None,
+    context: str | None = None,
+) -> ArrowTable
+```
+
+Fetch values as a table for polars, pandas, pyarrow, DuckDB, etc.
+
+Both shapes have one row per timestamp and path, with a UTC `timestamp` column and a `path` column:
+
+- **long**: a single `value` column. It’s float64 if every value is a number, otherwise text, with objects and arrays as JSON.
+- **wide**: `min_value`/`avg_value`/`max_value` for number paths, and one column per element for array paths (`longitude`/`latitude` for positions, otherwise `value_0`, `value_1`, …).
+
+Warning
+
+Wide column names may change in a future release.
+
+The other arguments are as for values().
+
+Parameters:
+
+- **`shape`** (`Shape | None`, default: `None` ) – Defaults to wide if no aggregation or inline spec is given (min/average/max are fetched), otherwise long.
+
+### cardinality
+
+```python
+cardinality(
+    paths: Sequence[str] = ("*",),
+    time: TimeRange | None = None,
+    *,
+    resolution: str | int | None = None,
+    context: str | None = None,
+) -> ArrowTable
+```
+
+Per-path statistics over the time range, as a table.
+
+Columns: `path`, `distinct_values`, `distinct_values_2_decimal_places`, `nulls`, `zeroes`, `min`, `max`, `average`. `min`/`max`/`average` are null unless every value of the path is a number.
+
+### cardinality_rows
+
+```python
+cardinality_rows(
+    paths: Sequence[str] = ("*",),
+    time: TimeRange | None = None,
+    *,
+    resolution: str | int | None = None,
+    context: str | None = None,
+) -> list[dict[str, Any]]
+```
+
+Like cardinality(), as a list of dicts.
+
+## HistoryResult
+
+```python
+HistoryResult(payload: dict, *, wide: bool = False)
+```
+
+A /values response, with conversions to tables and statistics.
+
+Attributes:
+
+- **`payload`** – The decoded JSON response, as the server sent it.
+- **`wide`** – True when the request asked for min/average/max per path, so the result reads naturally in the wide shape.
+
+### paths
+
+```python
+paths: list[str]
+```
+
+Distinct paths in the response, in the order the server listed them.
+
+### to_arrow
+
+```python
+to_arrow(shape: Shape | None = None) -> ArrowTable
+```
+
+Convert to a table; see query() for the two shapes.
+
+Parameters:
+
+- **`shape`** (`Shape | None`, default: `None` ) – "long" or "wide". Defaults to wide when the request asked for min/average/max, otherwise long.
+
+### cardinality
+
+```python
+cardinality() -> list[dict[str, Any]]
+```
+
+Per-path statistics; see cardinality().
+
+## build_path_specs
+
+```python
+build_path_specs(
+    paths: Sequence[str],
+    aggregation: str | None = None,
+    samples: int | None = None,
+    alpha: float | None = None,
+) -> tuple[str, bool]
+```
+
+Build the `paths` query parameter, with an aggregation method per path.
+
+Paths that already carry a method (`navigation.speedOverGround:sma:5`) pass through unchanged. With no aggregation and no inline methods, each path is requested as min, average and max (wide shape), except position paths, which don’t support those and are requested with `mid`.
+
+Returns:
+
+- `str` – (paths_param, wide), where wide says the response should be
+- `bool` – read in the wide shape.
+
+## match_paths
+
+```python
+match_paths(
+    patterns: Sequence[str], available: Sequence[str]
+) -> list[str]
+```
+
+Expand path patterns against a list of known paths.
+
+Literal paths and inline specs (`path:method`) pass through unchanged. A path is a pattern if it contains any of `* ? + [ ] ( ) { } | ^ $ \` (a `.` alone doesn’t count, so `navigation.speedOverGround` is literal). Patterns are matched as globs (`navigation.*`) when they only use glob characters, otherwise as Python regular expressions (searched, not anchored); an invalid regex falls back to a glob.
+
+Returns:
+
+- `list[str]` – The literal paths in the order given, followed by all matched paths, sorted.
+
+## TimeRange
+
+```python
+TimeRange(
+    start: str | datetime | None = None,
+    end: str | datetime | None = None,
+    duration: str | int | timedelta | None = None,
+)
+```
+
+The time window for a History API request.
+
+Any combination of start, end and duration may be given, as the History API allows. Timestamps may be ISO 8601 strings or datetimes (naive datetimes are taken as UTC). Durations may be ISO 8601 strings (PT15M, P1D), integer seconds, or timedeltas.
+
+Examples:
+
+```python
+last_hour = TimeRange(duration="PT1H")
+one_day = TimeRange(start="2026-05-27T00:00:00Z", duration="P1D")
+```
+
+### resolved
+
+```python
+resolved() -> TimeRange
+```
+
+Return an equivalent range the server accepts, with all values as strings.
+
+The server only accepts time-only durations (PT…), so durations with date parts (P1D, P1W) are expanded to explicit start and end timestamps. With no start and no duration, the range defaults to the hour ending at end, or now.
+
+### params
+
+```python
+params() -> dict[str, str]
+```
+
+Return the from/to/duration query parameters for this range, as given.
+
+# Streaming API reference
+
+Import from `signalk_cli.stream` (or `signalk_cli` for the main classes).
+
+Python API for the SignalK v1 Streaming (delta) API.
+
+Spec: https://signalk.org/specification/1.8.2/doc/streaming_api.html Subscribe path wildcards: https://signalk.org/specification/1.8.2/doc/subscription_protocol.html
+
+Examples:
+
+```python
+from signalk_cli.stream import StreamClient
+client = StreamClient("http://boat.local:3000")
+table = client.collect(["navigation.*"], count=100, policy="instant")
+import polars as pl
+df = pl.DataFrame(table)
+```
+
+## StreamClient
+
+```python
+StreamClient(
+    host: str,
+    *,
+    context: str = "vessels.self",
+    subscribe: Subscribe = "none",
+    session: Session | None = None,
+)
+```
+
+Client for a SignalK server’s v1 Streaming (delta) API.
+
+Parameters:
+
+- **`host`** (`str`) – Server URL, e.g. http://boat.local:3000 (http:// is added if there’s no scheme).
+- **`context`** (`str`, default: `'vessels.self'` ) – SignalK context to subscribe to. Accepts the wildcard * (or vessels.\*) for every vessel.
+- **`subscribe`** (`Subscribe`, default: `'none'` ) – The connection-level auto-subscription the server adds at its own default rate: "none" (default), "self" or "all". It’s in addition to the explicit subscription for context; "none" avoids receiving your own vessel twice.
+- **`session`** (`Session | None`, default: `None` ) – A niquests session to connect with. One is created (and closed with the client) if not given.
+
+### close
+
+```python
+close() -> None
+```
+
+Close the session, if the client created it.
+
+### open
+
+```python
+open(
+    paths: Sequence[str] = (),
+    *,
+    policy: Policy | None = "ideal",
+    period: float | None = 60.0,
+    min_period: float | None = None,
+    timeout: float | None = 30,
+) -> DeltaStream
+```
+
+Connect and subscribe, returning the open DeltaStream.
+
+Parameters:
+
+- **`paths`** (`Sequence[str]`, default: `()` ) – Paths to subscribe to; all paths if empty. * wildcards are matched by the server, at the end of a path (navigation.\*) or as a whole segment (propulsion.\*.oilTemperature).
+- **`policy`** (`Policy | None`, default: `'ideal'` ) – "instant" sends every change (limited by min_period); "ideal" also resends the last value if nothing changes within period; "fixed" sends the last value every period.
+- **`period`** (`float | None`, default: `60.0` ) – Resend interval in seconds for ideal/fixed.
+- **`min_period`** (`float | None`, default: `None` ) – Fastest send rate in seconds, for instant.
+- **`timeout`** (`float | None`, default: `30` ) – Seconds to wait for each message, or None to wait indefinitely (a quiet subscription may send nothing for a long time).
+
+Raises:
+
+- `SignalKError` – If the connection fails.
+
+### collect
+
+```python
+collect(
+    paths: Sequence[str] = (),
+    *,
+    count: int,
+    include_meta: bool = False,
+    sources: Sequence[str] = (),
+    policy: Policy | None = "ideal",
+    period: float | None = 60.0,
+    min_period: float | None = None,
+    timeout: float | None = 30,
+) -> ArrowTable
+```
+
+Subscribe, read `count` delta messages into a table, and disconnect.
+
+Arguments are as for open() and collect().
+
+## DeltaStream
+
+```python
+DeltaStream(ws: Any)
+```
+
+An open subscription. Iterate it for DeltaMessage objects.
+
+Use as a context manager, or call close(), to close the connection.
+
+Raises:
+
+- `SignalKError` – While iterating, if the connection is lost.
+
+### close
+
+```python
+close() -> None
+```
+
+Close the WebSocket connection.
+
+### messages
+
+```python
+messages(
+    count: int | None = None,
+) -> Iterator[DeltaMessage]
+```
+
+Yield delta messages, skipping control messages such as the server’s hello.
+
+Stops after `count` messages if given, or when the server closes the connection.
+
+### rows
+
+```python
+rows(
+    count: int | None = None,
+    *,
+    include_meta: bool = False,
+    sources: Sequence[str] = (),
+) -> Iterator[DeltaRow]
+```
+
+Yield rows from the next `count` messages (see rows()).
+
+### collect
+
+```python
+collect(
+    count: int | None = None,
+    *,
+    include_meta: bool = False,
+    sources: Sequence[str] = (),
+) -> ArrowTable
+```
+
+Read `count` messages (or until the server closes) into a table.
+
+See rows_to_arrow() for the columns.
+
+## DeltaMessage
+
+```python
+DeltaMessage(text: str, payload: dict)
+```
+
+A delta message from the server.
+
+Attributes:
+
+- **`text`** (`str`) – The message exactly as received.
+- **`payload`** (`dict`) – The decoded message.
+
+### rows
+
+```python
+rows(
+    *,
+    include_meta: bool = False,
+    sources: Sequence[str] = (),
+) -> list[DeltaRow]
+```
+
+Flatten into rows, one per value.
+
+Parameters:
+
+- **`include_meta`** (`bool`, default: `False` ) – Also include each update’s “meta” entries, as rows with kind="meta".
+- **`sources`** (`Sequence[str]`, default: `()` ) – Only include updates whose $source matches one of these patterns (see source_matches()).
+
+### matches_sources
+
+```python
+matches_sources(sources: Sequence[str]) -> bool
+```
+
+True if any update in the message comes from a matching `$source`.
+
+## DeltaRow
+
+Bases: `NamedTuple`
+
+One value (or meta entry) from a delta message.
+
+`value` keeps its JSON type: a number, string, bool, object, array, or None. `kind` is `"value"`, or `"meta"` for metadata entries (units, description, zones, …).
+
+## rows_to_arrow
+
+```python
+rows_to_arrow(
+    rows: Sequence[DeltaRow], *, include_meta: bool = False
+) -> ArrowTable
+```
+
+Convert delta rows to a table: UTC `timestamp`, `context`, `source`, `path`, `kind` (only with `include_meta`) and `value`.
+
+`value` is float64 if every value is a number, otherwise text, with objects and arrays as JSON.
+
+## source_matches
+
+```python
+source_matches(
+    source: str, patterns: Sequence[str]
+) -> bool
+```
+
+Match a `$source` string against source filter patterns (OR’d).
+
+No patterns means no filtering (always matches). A pattern containing glob metacharacters (`*`/`?`/`[`) is matched as-is via `fnmatch`; otherwise it’s treated as a substring match, e.g. “Teltonika” matches the source “Teltonika.GP”.
+
+## build_subscribe_message
+
+```python
+build_subscribe_message(
+    context: str,
+    paths: Sequence[str],
+    *,
+    period_ms: int | None = None,
+    policy: str | None = None,
+    min_period_ms: int | None = None,
+) -> dict
+```
+
+Build a client subscribe message for the given context and paths.
+
+An empty path list subscribes to all paths within the context (equivalent to a single “*” path). Paths are passed through unchanged — wildcarding is handled server-side per the SignalK Subscription Protocol: “*” at the end of a path matches any suffix (e.g. “navigation.*”), and “*” as a middle segment matches any single segment there (e.g. “propulsion.\*.oilTemperature”).
+
+period_ms/policy/min_period_ms map directly to the per-path “period”, “policy”, and “minPeriod” fields of the Subscription Protocol and are applied identically to every path when given. `policy` (“instant”/”ideal”/”fixed”) defaults to “ideal” server-side if omitted; `min_period_ms` only affects the “instant” policy. The protocol also defines a per-path “format” (“delta”/”full”) field, but it’s omitted here: signalk-server rejects “full” outright and always sends delta messages regardless, so exposing the choice would be misleading.
+
+## to_ws_url
+
+```python
+to_ws_url(host: str) -> str
+```
+
+Convert an http(s) host base URL to the ws(s) streaming endpoint URL.
+
+# Tables, errors and discovery
+
+## ArrowTable
+
+```python
+ArrowTable(columns: dict[str, tuple[list, Any]])
+```
+
+A table of query results, ready to load into any Arrow-aware dataframe library.
+
+It implements the [Arrow PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html), so it can be passed straight to polars, pandas, pyarrow, DuckDB and others without signalk-cli depending on any of them:
+
+Examples:
+
+```python
+import polars as pl
+df = pl.DataFrame(table)
+import pandas as pd
+df = pd.DataFrame.from_arrow(table)  # pandas >= 3.0
+import pyarrow as pa
+t = pa.table(table)
+```
+
+### num_rows
+
+```python
+num_rows: int
+```
+
+### column_names
+
+```python
+column_names: list[str]
+```
+
+### to_pydict
+
+```python
+to_pydict() -> dict[str, list]
+```
+
+Return the columns as plain Python lists (timestamps as epoch microseconds).
+
+## SignalKError
+
+```python
+SignalKError(
+    message: str, *, status_code: int | None = None
+)
+```
+
+Bases: `Exception`
+
+A request to a SignalK server failed.
+
+Attributes:
+
+- **`status_code`** – HTTP status of the failed response, or None if the server couldn’t be reached.
+
+### from_request
+
+```python
+from_request(exc: RequestException) -> SignalKError
+```
+
+Wrap a niquests exception, using the server’s error message if it sent one.
+
+## discover_host
+
+```python
+discover_host(timeout: float = 5.0) -> str | None
+```
+
+Browse mDNS for a SignalK server and return its base URL, or None.
 # Release notes
+
+# v3.0.0 (unreleased)
+
+## ✨ Enhancements
+
+- New Python API
+- All the functionality of the CLI now available as a Python API to use in your own scripts, apps or notebooks
+- History API: `signalk_cli.history.HistoryClient`
+  - Returns tables that load straight into polars, pandas, pyarrow or DuckDB (via the small `nanoarrow` dependency; using Arrow PyCapsule interface so `pyarrow` not needed)
+- Wide table column names may change in future releases
+- Streaming API (beta): `signalk_cli.stream.StreamClient`
+  - `open()` for a live `DeltaStream` of messages or rows, `collect()` for a table of the next N messages
+- Feather files from `query` now have typed columns (UTC timestamps, floats) instead of all text
+- Streaming Feather files now have typed columns (UTC timestamps, and float values where every value is a number)
+- `list-paths` and `list-contexts` now accept date durations such as `--duration P1D`, like `query`
+
+## 🚨 Breaking changes
+
+- Plain dotted paths such as `navigation.speedOverGround` are now always literal; only `* ? + [ ( { | ^ $ \` make a pattern. Previously a `.` alone made a regex, so a path was looked up via `/paths`, matched as a substring, and dropped if the server had no data for it
+- The undocumented `signalk_cli.history.history_api` and `signalk_cli.stream.stream_api` modules are gone; use `signalk_cli.history` and `signalk_cli.stream` instead
+
+## 📚 Documentation
+
+- Docs overhauled and updated for new APIs
 
 # v2.2.1
 
+## ✨ Enhancements
+
+- Slimmed down for in-browser Python
 - `zeroconf` is now optional at runtime
 - Allows pure python environments like Pyodide WASM to run, at the expense of automatic SignalK server discovery over mDNS
+- Used by the [`signalk-datalab-plugin`](https://github.com/rhizomatics/signalk-datalab-plugin)
+- Installs directly in Pyodide/WebAssembly with `micropip.install("signalk-cli")`: platform markers skip `zeroconf` and require `niquests>=3.21.0` there
+
+## 📝 Other changes
+
 - Minor dependency updates
+
+## 📚 Documentation
+
 - Documentation switched to `properdocs` and `materialx`
 
 # v2.2.0
+
+## ✨ Enhancements
 
 - Streaming now supports `values` as an output format to only emit the delta values (only useful when emitting a single path )
 - Streaming allows filtering by source, e.g. `--source 'Teltonika.*'`
 
 # v2.1.0
 
+## ✨ Enhancements
+
 - Better handling of websocket timeouts when following streaming deltas where SignalK server lags
 - New `--include-meta` flag to add streaming metadata
+
+## 📚 Documentation
+
 - Improved and clarified use of `context` and `subscribe` when streaming
 
 # v2.0.1
+
+## ✨ Enhancements
 
 - New module to query SignalK data streaming, with CSV, JSON and Arrow support along with ability to follow live stream
 
 # v1.2.0
 
+## ✨ Enhancements
+
 - Improve handling of non-scalar values, such as `navigation.position`
 - Add a `cardinality` report to analyze paths for number of unique values, nulls, mins, maxes etc
 
 # v1.1.0
+
+## ✨ Enhancements
 
 - pyArrow is now an optional dependency
 - Can now run using `uv run --with` form
@@ -582,5 +1468,7 @@ The default history provider is fetched from the server once and cached per host
 - `--output` without a value will auto generate a suitable file name
 
 # v1.0.0
+
+## 🔬 Preview features
 
 - First pypi release of working CLI, limited to History API
