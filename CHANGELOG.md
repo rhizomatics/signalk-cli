@@ -15,9 +15,9 @@
 ## 🚨 Breaking changes
 - Plain dotted paths such as `navigation.speedOverGround` are now always literal; only `* ? + [ ( { | ^ $ \` make a pattern. Previously a `.` alone made a regex, so a path was looked up via `/paths`, matched as a substring, and dropped if the server had no data for it
 - The undocumented `signalk_cli.history.history_api` and `signalk_cli.stream.stream_api` modules are gone; use `signalk_cli.history` and `signalk_cli.stream` instead
-## 📝 Other changes
-## ⚠️ Deprecated
+
 ## 📚 Documentation
+- Docs overhauled and updated for new APIs
 
 
 # v2.2.1
