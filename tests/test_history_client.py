@@ -62,12 +62,8 @@ class FakeSession:
         return next(p for e, p in self.requests if e == endpoint)
 
 
-# Paths containing "." count as patterns, so the fake server needs a path list
-KNOWN_PATHS = [*SERVER_PATHS, "nav.sog", "navigation.position"]
-
-
 def _client(routes=None, **kwargs) -> tuple[HistoryClient, FakeSession]:
-    session = FakeSession({"paths": KNOWN_PATHS, **(routes or {})})
+    session = FakeSession(routes or {})
     kwargs.setdefault("provider", "testdb")
     return HistoryClient(
         HOST, session=cast(niquests.Session, session), **kwargs
@@ -302,10 +298,35 @@ def test_default_time_is_last_hour():
     assert set(params) == {"from", "to", "provider"}
 
 
-def test_expand_paths_literals_need_no_request():
+@pytest.mark.parametrize(
+    "path",
+    ["depth", "navigation.speedOverGround", "navigation.speedOverGround:sma:5"],
+)
+def test_expand_paths_literals_need_no_request(path):
     client, session = _client()
-    assert client.expand_paths(["depth", "nav.sog:max"]) == ["depth", "nav.sog:max"]
+    assert client.expand_paths([path]) == [path]
     assert session.requests == []
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        (
+            "navigation.*",
+            ["navigation.courseOverGroundTrue", "navigation.speedOverGround"],
+        ),
+        (r"navigation\.speed", ["navigation.speedOverGround"]),
+        ("*.speed?pparent", ["environment.wind.speedApparent"]),
+        (
+            "(course|wind)",
+            ["environment.wind.speedApparent", "navigation.courseOverGroundTrue"],
+        ),
+        ("speedOverGround$", ["navigation.speedOverGround"]),
+    ],
+)
+def test_expand_paths_pattern_characters(pattern, expected):
+    client, _ = _client({"paths": SERVER_PATHS})
+    assert client.expand_paths([pattern], HOUR) == expected
 
 
 def test_expand_paths_patterns_fetch_paths_once():

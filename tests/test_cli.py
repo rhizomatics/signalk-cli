@@ -23,16 +23,16 @@ def runner():
 
 
 def _mock_values(mocker, values_result):
-    """Patch only the /values HTTP call. Use dot-free path args to skip expansion."""
+    """Patch only the /values HTTP call. Use literal path args to skip expansion."""
     mocker.patch(
         "niquests.Session.get",
         return_value=make_response(values_result),
     )
 
 
-# Use "sog" (no dots, no colon) so expand_paths treats it as a literal
-# and never calls the /paths endpoint — keeping the test self-contained.
-LITERAL_PATH = "sog"
+# A literal path (no pattern characters) never calls the /paths endpoint,
+# keeping the test self-contained.
+LITERAL_PATH = "navigation.speedOverGround"
 
 
 def test_query_wide_mode_csv_stdout(runner, mocker):

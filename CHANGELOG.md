@@ -3,6 +3,7 @@
   - Wide table column names may change in future releases
 - Feather files from `query` now have typed columns (UTC timestamps, floats) instead of all text
 - `list-paths` and `list-contexts` now accept date durations such as `--duration P1D`, like `query`
+- Plain dotted paths such as `navigation.speedOverGround` are now always literal; only `* ? + [ ( { | ^ $ \` make a pattern. Previously a `.` alone made a regex, so a path was looked up via `/paths`, matched as a substring, and dropped if the server had no data for it
 - Breaking: the undocumented `signalk_cli.history.history_api` module is gone; use `signalk_cli.history` instead
 
 ## ✨ Enhancements

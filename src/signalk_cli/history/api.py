@@ -42,7 +42,8 @@ AGGREGATION_METHODS = (
 
 Shape = Literal["long", "wide"]
 
-_REGEX_CHARS = set(r".*+?[](){}|^$\\")
+# "." is left out: it's in every SignalK path, so a plain dotted path is a literal
+_PATTERN_CHARS = set(r"*+?[](){}|^$\\")
 _GLOB_ONLY_RE = re.compile(r"^[^.+(){}|^$\\]+$")
 
 
@@ -95,7 +96,7 @@ def build_path_specs(
 
 
 def _is_pattern(path: str) -> bool:
-    return ":" not in path and any(c in path for c in _REGEX_CHARS)
+    return ":" not in path and any(c in path for c in _PATTERN_CHARS)
 
 
 def _compile(pattern: str) -> re.Pattern:
@@ -112,6 +113,8 @@ def match_paths(patterns: Sequence[str], available: Sequence[str]) -> list[str]:
     """Expand path patterns against a list of known paths.
 
     Literal paths and inline specs (``path:method``) pass through unchanged.
+    A path is a pattern if it contains any of ``* ? + [ ] ( ) { } | ^ $ \\``
+    (a ``.`` alone doesn't count, so ``navigation.speedOverGround`` is literal).
     Patterns are matched as globs (``navigation.*``) when they only use glob
     characters, otherwise as Python regular expressions (searched, not
     anchored); an invalid regex falls back to a glob.

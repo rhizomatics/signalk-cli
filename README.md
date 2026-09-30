@@ -121,7 +121,7 @@ python -m signalk_cli.history query [OPTIONS] PATH...
 **PATH** arguments may be:
 
 - **Literal paths** — e.g. `navigation.speedOverGround`
-- **Regex / glob patterns** — any argument containing metacharacters (`*`, `.`, `[`, `(`, etc.) is matched against the server's `/paths` endpoint. Bare `*` is treated as a glob wildcard.
+- **Regex / glob patterns** — any argument containing a pattern character (`*`, `?`, `+`, `[`, `(`, `{`, `|`, `^`, `$` or `\`) is matched against the server's `/paths` endpoint. A `.` on its own doesn't count, so a plain dotted path is always literal. Bare `*` is treated as a glob wildcard.
 - **Inline path specs** — `path:method` or `path:method:param`, e.g. `navigation.speedOverGround:sma:5`. These pass through to the server unchanged.
 
 #### Options
