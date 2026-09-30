@@ -10,7 +10,8 @@ from urllib.parse import urlparse
 import click
 import niquests
 
-from ..net import api_error, bare_option, host_option, resolve_host, stderr_ctx
+from .._cli import bare_option, host_option, resolve_host, stderr_ctx
+from ..errors import api_error
 from .output import (
     FEATHER_EXTENSIONS,
     delta_matches_source,

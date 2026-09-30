@@ -43,17 +43,16 @@ Python is required to run this, version 3.13 or above. [uv](https://docs.astral.
 
 For Apache Arrow Feather export, use the optional dependency: ```pip install 'signalk-cli[feather]'```
 
-### Pyodide / slim install
+### Pyodide / WebAssembly
 
-`zeroconf` (used only for mDNS host discovery) can't run in Pyodide, and is optional at runtime. Install without dependencies and add the rest explicitly:
+The same wheel installs in Pyodide (e.g. marimo in the browser). Platform markers skip `zeroconf`, which can't run there, and require `niquests>=3.21.0`:
 
 ```python
 import micropip
-await micropip.install(["click", "niquests[ws]>=3.21.0"])
-await micropip.install("signalk-cli", deps=False)
+await micropip.install("signalk-cli")
 ```
 
-Without `zeroconf`, the host must be given with `--host` or `SIGNALK_HOST` (or come from the cache).
+Without `zeroconf` there's no mDNS discovery, so the host must be given with `--host` or `SIGNALK_HOST` (or come from the cache).
 
 ### Local Copy
 

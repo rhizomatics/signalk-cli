@@ -18,59 +18,6 @@ def runner():
 
 
 # ---------------------------------------------------------------------------
-# _build_path_specs (pure unit — no HTTP)
-# ---------------------------------------------------------------------------
-
-
-def test_build_path_specs_wide_mode():
-    from signalk_cli.history.cli import _build_path_specs
-
-    query, wide = _build_path_specs(["navigation.speedOverGround"], None, None, None)
-    assert wide is True
-    assert "navigation.speedOverGround:min" in query
-    assert "navigation.speedOverGround:average" in query
-    assert "navigation.speedOverGround:max" in query
-
-
-def test_build_path_specs_aggregation():
-    from signalk_cli.history.cli import _build_path_specs
-
-    query, wide = _build_path_specs(["nav.sog"], "average", None, None)
-    assert wide is False
-    assert query == "nav.sog:average"
-
-
-def test_build_path_specs_sma_with_samples():
-    from signalk_cli.history.cli import _build_path_specs
-
-    query, _wide = _build_path_specs(["nav.sog"], "sma", 5, None)
-    assert query == "nav.sog:sma:5"
-
-
-def test_build_path_specs_ema_with_alpha():
-    from signalk_cli.history.cli import _build_path_specs
-
-    query, _wide = _build_path_specs(["nav.sog"], "ema", None, 0.2)
-    assert query == "nav.sog:ema:0.2"
-
-
-def test_build_path_specs_inline_passthrough():
-    from signalk_cli.history.cli import _build_path_specs
-
-    query, wide = _build_path_specs(["nav.sog:max"], None, None, None)
-    assert wide is False
-    assert query == "nav.sog:max"
-
-
-def test_build_path_specs_inline_survives_agg():
-    from signalk_cli.history.cli import _build_path_specs
-
-    query, _wide = _build_path_specs(["nav.sog:max", "nav.cog"], "average", None, None)
-    assert "nav.sog:max" in query
-    assert "nav.cog:average" in query
-
-
-# ---------------------------------------------------------------------------
 # query command
 # ---------------------------------------------------------------------------
 
@@ -78,7 +25,7 @@ def test_build_path_specs_inline_survives_agg():
 def _mock_values(mocker, values_result):
     """Patch only the /values HTTP call. Use dot-free path args to skip expansion."""
     mocker.patch(
-        "signalk_cli.history.cli.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(values_result),
     )
 
@@ -114,7 +61,7 @@ def test_query_no_header(runner, mocker):
 
 
 def test_query_feather_stdout_error(runner, mocker):
-    mocker.patch("signalk_cli.history.cli.niquests.get", return_value=make_response({}))
+    mocker.patch("niquests.Session.get", return_value=make_response({}))
     result = runner.invoke(
         cli,
         ["query", *BASE_ARGS, "--format=feather", "nav.sog"],
@@ -128,7 +75,7 @@ def test_query_http_error(runner, mocker):
 
     mock_resp = make_response({"error": "bad request"}, status_code=400)
     mock_resp.raise_for_status.side_effect = niquests.HTTPError(response=mock_resp)
-    mocker.patch("signalk_cli.history.cli.niquests.get", return_value=mock_resp)
+    mocker.patch("niquests.Session.get", return_value=mock_resp)
     result = runner.invoke(
         cli,
         ["query", *BASE_ARGS, "--agg=average", "nav.sog"],
@@ -174,7 +121,7 @@ def test_query_writes_file(runner, mocker, tmp_path):
 
 def test_list_paths_bare(runner, mocker, server_paths):
     mocker.patch(
-        "signalk_cli.history.history_api.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(server_paths),
     )
     result = runner.invoke(cli, ["list-paths", HOST, PROVIDER, DURATION, "--bare"])
@@ -187,7 +134,7 @@ def test_list_paths_bare(runner, mocker, server_paths):
 
 def test_list_paths(runner, mocker, server_paths):
     mocker.patch(
-        "signalk_cli.history.history_api.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(server_paths),
     )
     result = runner.invoke(cli, ["list-paths", HOST, PROVIDER, DURATION])
@@ -198,7 +145,7 @@ def test_list_paths(runner, mocker, server_paths):
 
 def test_list_paths_count(runner, mocker, server_paths):
     mocker.patch(
-        "signalk_cli.history.history_api.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(server_paths),
     )
     result = runner.invoke(cli, ["list-paths", HOST, PROVIDER, DURATION])
@@ -216,7 +163,7 @@ def test_list_providers_bare(runner, mocker):
         "influxdb": {"isDefault": False},
     }
     mocker.patch(
-        "signalk_cli.history.cli.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(providers),
     )
     result = runner.invoke(cli, ["list-providers", HOST, "--bare"])
@@ -233,7 +180,7 @@ def test_list_providers(runner, mocker):
         "influxdb": {"isDefault": False},
     }
     mocker.patch(
-        "signalk_cli.history.cli.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(providers),
     )
     result = runner.invoke(cli, ["list-providers", HOST])
@@ -252,7 +199,7 @@ def test_list_providers(runner, mocker):
 def test_list_contexts_bare(runner, mocker):
     contexts = ["vessels.self", "vessels.urn:mrn:imo:mmsi:123456789"]
     mocker.patch(
-        "signalk_cli.history.cli.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(contexts),
     )
     result = runner.invoke(cli, ["list-contexts", HOST, PROVIDER, DURATION, "--bare"])
@@ -266,7 +213,7 @@ def test_list_contexts_bare(runner, mocker):
 def test_list_contexts(runner, mocker):
     contexts = ["vessels.self", "vessels.urn:mrn:imo:mmsi:123456789"]
     mocker.patch(
-        "signalk_cli.history.cli.niquests.get",
+        "niquests.Session.get",
         return_value=make_response(contexts),
     )
     result = runner.invoke(cli, ["list-contexts", HOST, PROVIDER, DURATION])
@@ -280,10 +227,10 @@ def test_resolve_host_without_zeroconf(monkeypatch):
     import click
     import pytest
 
-    from signalk_cli import net
+    from signalk_cli import _cli, net
 
     monkeypatch.setattr(net, "Zeroconf", None)
     assert net.discover_host() is None
-    assert net.resolve_host("boat.local") == "http://boat.local"
+    assert _cli.resolve_host("boat.local") == "http://boat.local"
     with pytest.raises(click.UsageError, match="zeroconf not installed"):
-        net.resolve_host(None, no_cache=True)
+        _cli.resolve_host(None, no_cache=True)
