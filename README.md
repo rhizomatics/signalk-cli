@@ -76,6 +76,20 @@ uv run --with signalk-cli signalk_cli.history list-providers
 uv run --with signalk-cli signalk_cli.stream deltas navigation.position --follow
 ```
 
+## Python library
+
+Everything the CLI does is also available from Python, returning tables that load straight into polars, pandas, pyarrow or DuckDB:
+
+```python
+from signalk_cli import HistoryClient, TimeRange
+import polars as pl
+
+with HistoryClient("http://boat.local:3000") as client:
+    df = pl.DataFrame(client.query(["navigation.*"], TimeRange(duration="P1D")))
+```
+
+See the [Python library guide](https://signalk-cli.rhizomatics.org.uk/library/) and API reference.
+
 ## Running
 
 Run via `python -m signalk_cli.history <command>` or `python -m signalk_cli.stream <command>` or without installing the module with `uv run --with signalk-cli signalk_cli.history <command>`.

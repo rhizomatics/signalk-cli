@@ -3,12 +3,14 @@
 Spec: https://signalk.org/specification/1.8.2/doc/streaming_api.html
 Subscribe path wildcards: https://signalk.org/specification/1.8.2/doc/subscription_protocol.html
 
-Example:
-    >>> from signalk_cli.stream import StreamClient
-    >>> client = StreamClient("http://boat.local:3000")
-    >>> table = client.collect(["navigation.*"], count=100, policy="instant")
-    >>> import polars as pl
-    >>> df = pl.DataFrame(table)
+Examples:
+    ```python
+    from signalk_cli.stream import StreamClient
+    client = StreamClient("http://boat.local:3000")
+    table = client.collect(["navigation.*"], count=100, policy="instant")
+    import polars as pl
+    df = pl.DataFrame(table)
+    ```
 """
 
 import fnmatch
@@ -108,8 +110,8 @@ def _update_source(update: dict) -> str:
 class DeltaRow(NamedTuple):
     """One value (or meta entry) from a delta message.
 
-    ``value`` keeps its JSON type: a number, string, bool, object, array, or None.
-    ``kind`` is ``"value"``, or ``"meta"`` for metadata entries (units,
+    `value` keeps its JSON type: a number, string, bool, object, array, or None.
+    `kind` is `"value"`, or `"meta"` for metadata entries (units,
     description, zones, ...).
     """
 
@@ -140,9 +142,9 @@ class DeltaMessage:
 
         Args:
             include_meta: Also include each update's "meta" entries, as rows
-                with ``kind="meta"``.
-            sources: Only include updates whose ``$source`` matches one of
-                these patterns (see :func:`source_matches`).
+                with `kind="meta"`.
+            sources: Only include updates whose `$source` matches one of
+                these patterns (see [`source_matches()`][signalk_cli.stream.api.source_matches]).
         """
         context = self.payload.get("context", "")
         rows: list[DeltaRow] = []
@@ -167,7 +169,7 @@ class DeltaMessage:
         return rows
 
     def matches_sources(self, sources: Sequence[str]) -> bool:
-        """True if any update in the message comes from a matching ``$source``."""
+        """True if any update in the message comes from a matching `$source`."""
         return not sources or any(
             source_matches(_update_source(u), sources)
             for u in self.payload.get("updates", [])
@@ -177,10 +179,10 @@ class DeltaMessage:
 def rows_to_arrow(
     rows: Sequence[DeltaRow], *, include_meta: bool = False
 ) -> ArrowTable:
-    """Convert delta rows to a table: UTC ``timestamp``, ``context``, ``source``,
-    ``path``, ``kind`` (only with ``include_meta``) and ``value``.
+    """Convert delta rows to a table: UTC `timestamp`, `context`, `source`,
+    `path`, `kind` (only with `include_meta`) and `value`.
 
-    ``value`` is float64 if every value is a number, otherwise text, with
+    `value` is float64 if every value is a number, otherwise text, with
     objects and arrays as JSON.
     """
     text = ["context", "source", "path", "kind"]
@@ -203,9 +205,9 @@ def rows_to_arrow(
 
 
 class DeltaStream:
-    """An open subscription. Iterate it for :class:`DeltaMessage` objects.
+    """An open subscription. Iterate it for [`DeltaMessage`][signalk_cli.stream.api.DeltaMessage] objects.
 
-    Use as a context manager, or call :meth:`close`, to close the connection.
+    Use as a context manager, or call [`close()`][signalk_cli.stream.api.DeltaStream.close], to close the connection.
 
     Raises:
         SignalKError: While iterating, if the connection is lost.
@@ -221,6 +223,7 @@ class DeltaStream:
         self.close()
 
     def close(self) -> None:
+        """Close the WebSocket connection."""
         self._ws.close()
 
     def __iter__(self) -> Iterator[DeltaMessage]:
@@ -229,7 +232,7 @@ class DeltaStream:
     def messages(self, count: int | None = None) -> Iterator[DeltaMessage]:
         """Yield delta messages, skipping control messages such as the server's hello.
 
-        Stops after ``count`` messages if given, or when the server closes
+        Stops after `count` messages if given, or when the server closes
         the connection.
         """
         yielded = 0
@@ -258,7 +261,7 @@ class DeltaStream:
         include_meta: bool = False,
         sources: Sequence[str] = (),
     ) -> Iterator[DeltaRow]:
-        """Yield rows from the next ``count`` messages (see :meth:`DeltaMessage.rows`)."""
+        """Yield rows from the next `count` messages (see [`rows()`][signalk_cli.stream.api.DeltaMessage.rows])."""
         for message in self.messages(count):
             yield from message.rows(include_meta=include_meta, sources=sources)
 
@@ -269,9 +272,9 @@ class DeltaStream:
         include_meta: bool = False,
         sources: Sequence[str] = (),
     ) -> ArrowTable:
-        """Read ``count`` messages (or until the server closes) into a table.
+        """Read `count` messages (or until the server closes) into a table.
 
-        See :func:`rows_to_arrow` for the columns.
+        See [`rows_to_arrow()`][signalk_cli.stream.api.rows_to_arrow] for the columns.
         """
         rows = list(self.rows(count, include_meta=include_meta, sources=sources))
         return rows_to_arrow(rows, include_meta=include_meta)
@@ -281,14 +284,14 @@ class StreamClient:
     """Client for a SignalK server's v1 Streaming (delta) API.
 
     Args:
-        host: Server URL, e.g. ``http://boat.local:3000`` (``http://`` is
+        host: Server URL, e.g. `http://boat.local:3000` (`http://` is
             added if there's no scheme).
         context: SignalK context to subscribe to. Accepts the wildcard
-            ``*`` (or ``vessels.*``) for every vessel.
+            `*` (or `vessels.*`) for every vessel.
         subscribe: The connection-level auto-subscription the server adds at
-            its own default rate: ``"none"`` (default), ``"self"`` or
-            ``"all"``. It's in addition to the explicit subscription for
-            ``context``; ``"none"`` avoids receiving your own vessel twice.
+            its own default rate: `"none"` (default), `"self"` or
+            `"all"`. It's in addition to the explicit subscription for
+            `context`; `"none"` avoids receiving your own vessel twice.
         session: A niquests session to connect with. One is created (and
             closed with the client) if not given.
     """
@@ -327,19 +330,19 @@ class StreamClient:
         min_period: float | None = None,
         timeout: float | None = 30,
     ) -> DeltaStream:
-        """Connect and subscribe, returning the open :class:`DeltaStream`.
+        """Connect and subscribe, returning the open [`DeltaStream`][signalk_cli.stream.api.DeltaStream].
 
         Args:
-            paths: Paths to subscribe to; all paths if empty. ``*`` wildcards
+            paths: Paths to subscribe to; all paths if empty. `*` wildcards
                 are matched by the server, at the end of a path
-                (``navigation.*``) or as a whole segment
-                (``propulsion.*.oilTemperature``).
-            policy: ``"instant"`` sends every change (limited by
-                ``min_period``); ``"ideal"`` also resends the last value if
-                nothing changes within ``period``; ``"fixed"`` sends the last
-                value every ``period``.
-            period: Resend interval in seconds for ``ideal``/``fixed``.
-            min_period: Fastest send rate in seconds, for ``instant``.
+                (`navigation.*`) or as a whole segment
+                (`propulsion.*.oilTemperature`).
+            policy: `"instant"` sends every change (limited by
+                `min_period`); `"ideal"` also resends the last value if
+                nothing changes within `period`; `"fixed"` sends the last
+                value every `period`.
+            period: Resend interval in seconds for `ideal`/`fixed`.
+            min_period: Fastest send rate in seconds, for `instant`.
             timeout: Seconds to wait for each message, or None to wait
                 indefinitely (a quiet subscription may send nothing for a
                 long time).
@@ -384,9 +387,9 @@ class StreamClient:
         min_period: float | None = None,
         timeout: float | None = 30,
     ) -> ArrowTable:
-        """Subscribe, read ``count`` delta messages into a table, and disconnect.
+        """Subscribe, read `count` delta messages into a table, and disconnect.
 
-        Arguments are as for :meth:`open` and :meth:`DeltaStream.collect`.
+        Arguments are as for [`open()`][signalk_cli.stream.api.StreamClient.open] and [`collect()`][signalk_cli.stream.api.DeltaStream.collect].
         """
         with self.open(
             paths,

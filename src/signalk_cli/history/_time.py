@@ -126,9 +126,11 @@ class TimeRange:
     (naive datetimes are taken as UTC). Durations may be ISO 8601 strings
     (PT15M, P1D), integer seconds, or timedeltas.
 
-    Example:
-        >>> last_hour = TimeRange(duration="PT1H")
-        >>> one_day = TimeRange(start="2026-05-27T00:00:00Z", duration="P1D")
+    Examples:
+        ```python
+        last_hour = TimeRange(duration="PT1H")
+        one_day = TimeRange(start="2026-05-27T00:00:00Z", duration="P1D")
+        ```
     """
 
     start: str | datetime | None = None

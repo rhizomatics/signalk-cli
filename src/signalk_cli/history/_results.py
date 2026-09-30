@@ -92,9 +92,9 @@ def _array_col_names(path: str, length: int) -> list[str]:
 def wide_rows(payload: dict) -> tuple[list[str], list[str], dict[str, list[Any]]]:
     """Reshape a /values response into (timestamps, paths, value_columns).
 
-    Scalar paths fill ``min_value``/``avg_value``/``max_value``. Array paths
-    fill one column per element: ``longitude``/``latitude`` for
-    ``navigation.*.position``, otherwise ``value_0``, ``value_1``, ... Cells
+    Scalar paths fill `min_value`/`avg_value`/`max_value`. Array paths
+    fill one column per element: `longitude`/`latitude` for
+    `navigation.*.position`, otherwise `value_0`, `value_1`, ... Cells
     that don't apply to a row's path are None, and rows where every cell is
     null are dropped.
     """
@@ -181,9 +181,9 @@ def _distinct_2dp(vals: list) -> int | None:
 def cardinality(payload: dict) -> list[dict[str, Any]]:
     """Per-path statistics: distinct values, nulls, zeroes, and min/max/average.
 
-    Each row has the keys in :data:`CARDINALITY_COLUMNS`. ``min``, ``max`` and
-    ``average`` are None unless every value of the path is a number;
-    ``distinct_values_2_decimal_places`` is None for paths whose values are
+    Each row has the keys in `CARDINALITY_COLUMNS`. `min`, `max` and
+    `average` are None unless every value of the path is a number;
+    `distinct_values_2_decimal_places` is None for paths whose values are
     neither numbers nor arrays.
     """
     col_paths = _paths_by_column(payload)

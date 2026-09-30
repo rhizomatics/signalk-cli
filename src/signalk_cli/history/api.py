@@ -1,11 +1,13 @@
 """Python API for the SignalK v2 History API.
 
-Example:
-    >>> from signalk_cli.history import HistoryClient, TimeRange
-    >>> with HistoryClient("http://boat.local:3000") as client:
-    ...     table = client.query(["navigation.speedOverGround"], TimeRange(duration="PT1H"))
-    >>> import polars as pl
-    >>> df = pl.DataFrame(table)
+Examples:
+    ```python
+    from signalk_cli.history import HistoryClient, TimeRange
+    with HistoryClient("http://boat.local:3000") as client:
+        table = client.query(["navigation.speedOverGround"], TimeRange(duration="PT1H"))
+    import polars as pl
+    df = pl.DataFrame(table)
+    ```
 """
 
 import fnmatch
@@ -58,15 +60,15 @@ def build_path_specs(
     samples: int | None = None,
     alpha: float | None = None,
 ) -> tuple[str, bool]:
-    """Build the ``paths`` query parameter, with an aggregation method per path.
+    """Build the `paths` query parameter, with an aggregation method per path.
 
-    Paths that already carry a method (``navigation.speedOverGround:sma:5``)
+    Paths that already carry a method (`navigation.speedOverGround:sma:5`)
     pass through unchanged. With no aggregation and no inline methods, each
     path is requested as min, average and max (wide shape), except position
-    paths, which don't support those and are requested with ``mid``.
+    paths, which don't support those and are requested with `mid`.
 
     Returns:
-        ``(paths_param, wide)``, where ``wide`` says the response should be
+        `(paths_param, wide)`, where `wide` says the response should be
         read in the wide shape.
     """
     if aggregation:
@@ -112,10 +114,10 @@ def _compile(pattern: str) -> re.Pattern:
 def match_paths(patterns: Sequence[str], available: Sequence[str]) -> list[str]:
     """Expand path patterns against a list of known paths.
 
-    Literal paths and inline specs (``path:method``) pass through unchanged.
-    A path is a pattern if it contains any of ``* ? + [ ] ( ) { } | ^ $ \\``
-    (a ``.`` alone doesn't count, so ``navigation.speedOverGround`` is literal).
-    Patterns are matched as globs (``navigation.*``) when they only use glob
+    Literal paths and inline specs (`path:method`) pass through unchanged.
+    A path is a pattern if it contains any of `* ? + [ ] ( ) { } | ^ $ \\`
+    (a `.` alone doesn't count, so `navigation.speedOverGround` is literal).
+    Patterns are matched as globs (`navigation.*`) when they only use glob
     characters, otherwise as Python regular expressions (searched, not
     anchored); an invalid regex falls back to a glob.
 
@@ -159,10 +161,10 @@ class HistoryResult:
         )
 
     def to_arrow(self, shape: Shape | None = None) -> ArrowTable:
-        """Convert to a table; see :meth:`HistoryClient.query` for the two shapes.
+        """Convert to a table; see [`query()`][signalk_cli.history.api.HistoryClient.query] for the two shapes.
 
         Args:
-            shape: ``"long"`` or ``"wide"``. Defaults to wide when the request
+            shape: `"long"` or `"wide"`. Defaults to wide when the request
                 asked for min/average/max, otherwise long.
         """
         if (shape or ("wide" if self.wide else "long")) == "wide":
@@ -176,7 +178,7 @@ class HistoryResult:
         )
 
     def cardinality(self) -> list[dict[str, Any]]:
-        """Per-path statistics; see :meth:`HistoryClient.cardinality`."""
+        """Per-path statistics; see [`cardinality()`][signalk_cli.history.api.HistoryClient.cardinality]."""
         return _results.cardinality(self.payload)
 
 
@@ -205,15 +207,15 @@ class HistoryClient:
     """Client for a SignalK server's v2 History API.
 
     Args:
-        host: Server URL, e.g. ``http://boat.local:3000`` (``http://`` is
+        host: Server URL, e.g. `http://boat.local:3000` (`http://` is
             added if there's no scheme).
         provider: History provider plugin id. Defaults to the server's
             default provider, looked up on first use.
-        context: SignalK context to query, e.g. ``vessels.self``.
+        context: SignalK context to query, e.g. `vessels.self`.
         session: A niquests session to send requests with. One is created
             (and closed with the client) if not given.
         cache: Remember each server's default provider on disk, under
-            ``~/.cache/signalk-cli``, to save a request next time.
+            `~/.cache/signalk-cli`, to save a request next time.
         timeout: Seconds to wait for each response.
 
     Raises:
@@ -256,7 +258,7 @@ class HistoryClient:
     def fetch(
         self, endpoint: str, params: dict | None = None, *, stream: bool = False
     ) -> niquests.Response:
-        """GET a History API endpoint (e.g. ``"values"``, ``"paths"``) and return the response.
+        """GET a History API endpoint (e.g. `"values"`, `"paths"`) and return the response.
 
         A low-level escape hatch for callers that want the raw response body;
         the other methods are usually more convenient.
@@ -279,7 +281,7 @@ class HistoryClient:
     # -- providers ----------------------------------------------------------
 
     def providers(self) -> dict[str, dict[str, Any]]:
-        """Registered history providers, as ``{id: {"isDefault": bool, ...}}``."""
+        """Registered history providers, as `{id: {"isDefault": bool, ...}}`."""
         return self._get_json("_providers")
 
     def default_provider(self) -> str:
@@ -324,7 +326,7 @@ class HistoryClient:
     ) -> dict[str, Any]:
         """Query parameters for a request: the time range, provider, and any extras given.
 
-        Useful with :meth:`fetch`; ``None`` extras are left out.
+        Useful with [`fetch()`][signalk_cli.history.api.HistoryClient.fetch]; `None` extras are left out.
         """
         params: dict[str, Any] = (time or TimeRange()).resolved().params()
         if self.provider:
@@ -348,7 +350,7 @@ class HistoryClient:
         """Expand glob/regex patterns to the matching paths with data in the time range.
 
         Only fetches the server's path list if there's a pattern to match.
-        See :func:`match_paths` for the matching rules.
+        See [`match_paths()`][signalk_cli.history.api.match_paths] for the matching rules.
         """
         if not any(_is_pattern(p) for p in patterns):
             return list(patterns)
@@ -369,10 +371,10 @@ class HistoryClient:
         context: str | None = None,
         expand: bool = True,
     ) -> tuple[dict[str, Any], bool]:
-        """The query parameters :meth:`values` sends, and whether the result is wide.
+        """The query parameters [`values()`][signalk_cli.history.api.HistoryClient.values] sends, and whether the result is wide.
 
-        Useful with :meth:`fetch` to get the raw response body. Arguments are
-        as for :meth:`values`.
+        Useful with [`fetch()`][signalk_cli.history.api.HistoryClient.fetch] to get the raw response body. Arguments are
+        as for [`values()`][signalk_cli.history.api.HistoryClient.values].
         """
         time = (time or TimeRange()).resolved()
         resolved = self.expand_paths(paths, time) if expand else list(paths)
@@ -399,20 +401,20 @@ class HistoryClient:
         context: str | None = None,
         expand: bool = True,
     ) -> HistoryResult:
-        """Fetch values for the given paths, as a :class:`HistoryResult`.
+        """Fetch values for the given paths, as a [`HistoryResult`][signalk_cli.history.api.HistoryResult].
 
         Args:
             paths: Paths, glob/regex patterns, or inline specs such as
-                ``navigation.speedOverGround:sma:5``.
+                `navigation.speedOverGround:sma:5`.
             time: Time range; defaults to the last hour.
             aggregation: Method applied to each path without an inline spec,
-                one of :data:`AGGREGATION_METHODS`. If neither this nor
+                one of [`AGGREGATION_METHODS`][signalk_cli.history.api.AGGREGATION_METHODS]. If neither this nor
                 inline specs are given, min/average/max are fetched (wide).
-            samples: Window size for ``sma``.
-            alpha: Smoothing factor for ``ema``.
-            resolution: Sample window, as seconds or an expression like ``1m``.
+            samples: Window size for `sma`.
+            alpha: Smoothing factor for `ema`.
+            resolution: Sample window, as seconds or an expression like `1m`.
             context: Overrides the client's context for this request.
-            expand: Expand patterns in ``paths`` first (see :meth:`expand_paths`).
+            expand: Expand patterns in `paths` first (see [`expand_paths()`][signalk_cli.history.api.HistoryClient.expand_paths]).
 
         Raises:
             ValueError: If no paths are left to query after expansion.
@@ -444,22 +446,23 @@ class HistoryClient:
         """Fetch values as a table for polars, pandas, pyarrow, DuckDB, etc.
 
         Both shapes have one row per timestamp and path, with a UTC
-        ``timestamp`` column and a ``path`` column:
+        `timestamp` column and a `path` column:
 
-        - **long**: a single ``value`` column. It's float64 if every value is
+        - **long**: a single `value` column. It's float64 if every value is
           a number, otherwise text, with objects and arrays as JSON.
-        - **wide**: ``min_value``/``avg_value``/``max_value`` for number paths,
-          and one column per element for array paths (``longitude``/``latitude``
-          for positions, otherwise ``value_0``, ``value_1``, ...).
+        - **wide**: `min_value`/`avg_value`/`max_value` for number paths,
+          and one column per element for array paths (`longitude`/`latitude`
+          for positions, otherwise `value_0`, `value_1`, ...).
 
         !!! warning
             Wide column names may change in a future release.
 
+        The other arguments are as for
+        [`values()`][signalk_cli.history.api.HistoryClient.values].
+
         Args:
             shape: Defaults to wide if no aggregation or inline spec is
                 given (min/average/max are fetched), otherwise long.
-            paths, time, aggregation, samples, alpha, resolution, context:
-                As for :meth:`values`.
         """
         return self.values(
             paths,
@@ -481,9 +484,9 @@ class HistoryClient:
     ) -> ArrowTable:
         """Per-path statistics over the time range, as a table.
 
-        Columns: ``path``, ``distinct_values``,
-        ``distinct_values_2_decimal_places``, ``nulls``, ``zeroes``, ``min``,
-        ``max``, ``average``. ``min``/``max``/``average`` are null unless every
+        Columns: `path`, `distinct_values`,
+        `distinct_values_2_decimal_places`, `nulls`, `zeroes`, `min`,
+        `max`, `average`. `min`/`max`/`average` are null unless every
         value of the path is a number.
         """
         return _cardinality_table(
@@ -498,7 +501,7 @@ class HistoryClient:
         resolution: str | int | None = None,
         context: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Like :meth:`cardinality`, as a list of dicts."""
+        """Like [`cardinality()`][signalk_cli.history.api.HistoryClient.cardinality], as a list of dicts."""
         time = (time or TimeRange()).resolved()
         resolved = self.expand_paths(paths, time)
         if not resolved:

@@ -62,6 +62,7 @@ docs=[
     "pngquant",
     "mkdocs-htmlproofer-plugin",
     "mkdocs-llmstxt>=0.5.0,<0.6.0",
+    "mkdocstrings[python]>=1.0.6,<2.0.0",
 ]
 
 [project.urls]
@@ -101,7 +102,7 @@ branch = true
 source = ["src"]
 
 [tool.coverage.report]
-fail_under=0
+fail_under=90
 
 [tool.coverage.xml]
 output="cov.xml"

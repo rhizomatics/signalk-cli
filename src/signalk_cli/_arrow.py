@@ -49,18 +49,19 @@ def infer_column(values: Sequence[Any]) -> tuple[list, Any]:
 class ArrowTable:
     """A table of query results, ready to load into any Arrow-aware dataframe library.
 
-    It implements the `Arrow PyCapsule interface
-    <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html>`_,
+    It implements the [Arrow PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html),
     so it can be passed straight to polars, pandas, pyarrow, DuckDB and others
     without signalk-cli depending on any of them:
 
-    Example:
-        >>> import polars as pl
-        >>> df = pl.DataFrame(table)
-        >>> import pandas as pd
-        >>> df = pd.DataFrame.from_arrow(table)  # pandas >= 3.0
-        >>> import pyarrow as pa
-        >>> t = pa.table(table)
+    Examples:
+        ```python
+        import polars as pl
+        df = pl.DataFrame(table)
+        import pandas as pd
+        df = pd.DataFrame.from_arrow(table)  # pandas >= 3.0
+        import pyarrow as pa
+        t = pa.table(table)
+        ```
     """
 
     def __init__(self, columns: dict[str, tuple[list, Any]]) -> None:
@@ -82,8 +83,8 @@ class ArrowTable:
     ) -> "ArrowTable":
         """Build a table with a UTC timestamp column followed by the given columns.
 
-        Column types are inferred from the values (see :func:`infer_column`),
-        except ``text_columns``, which are always strings so an empty result
+        Column types are inferred from the values (see `infer_column`),
+        except `text_columns`, which are always strings so an empty result
         keeps the same schema.
         """
         built: dict[str, tuple[list, Any]] = {
