@@ -1,0 +1,14 @@
+# SignalK CLI
+
+> Command line access to SignalK APIs and streaming data
+
+Python CLI to query the SignalK v2 History API and v1 Streaming API, exporting to CSV, JSON, JSON Lines or Apache Arrow Feather. Installed as `signalk-cli`, run as `signalk_cli.history` and `signalk_cli.stream`.
+
+## Usage
+
+- [SignalK CLI](https://signalk-cli.rhizomatics.org.uk/index.md): Installation, host discovery, commands, options and examples
+
+## Release notes
+
+- [What's New](https://signalk-cli.rhizomatics.org.uk/changelog/index.md): Changes in each release
+
