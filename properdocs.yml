@@ -54,10 +54,10 @@ plugins:
   - pagetree
   - optimize
   - termynal:
-    include_assets: true
-    prompt_literal_start:
-      - '$'
-      - '>>>'
+      include_assets: true
+      prompt_literal_start:
+        - '$'
+        - '>>>'
   - mkdocs-homepage-copier:
       extras:
         - src: CHANGELOG.md

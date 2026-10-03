@@ -31,7 +31,7 @@ def _epoch_us(ts: str | datetime | None) -> int | None:
     return round(dt.timestamp() * 1_000_000)
 
 
-def infer_column(values: Sequence[Any]) -> tuple[list, Any]:
+def infer_column(values: Sequence[Any]) -> tuple[list[str | float | bool | None], Any]:
     """Pick one Arrow type for a column of JSON values: float64, bool, or string.
 
     Numbers (and nulls) become float64, booleans stay bool, and anything else
