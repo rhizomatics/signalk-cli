@@ -53,6 +53,16 @@ plugins:
   - autorefs
   - pagetree
   - optimize
+  - termynal:
+    include_assets: true
+    prompt_literal_start:
+      - '$'
+      - '>>>'
+  - mkdocs-homepage-copier:
+      extras:
+        - src: CHANGELOG.md
+          dest: docs/changelog.md
+          copy: true
   - tags:
       tags: false
   - meta-descriptions

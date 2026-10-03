@@ -1,4 +1,9 @@
-# v3.0.0 (unreleased)
+---
+title: SignalK CLI
+description: Command line access to SignalK APIs and streaming data, for piping within console, or export to CSV, JSON or Apache Arrow Feather for dataframe analysis.
+---
+
+# v3.0.0
 
 ## ✨ Enhancements
 - New Python API

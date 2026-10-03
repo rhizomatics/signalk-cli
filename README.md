@@ -1,3 +1,8 @@
+---
+title: SignalK CLI
+description: Command line access to SignalK APIs and streaming data, for piping within console, or export to CSV, JSON or Apache Arrow Feather for dataframe analysis.
+---
+
 # SignalK CLI
 
 [![Rhizomatics Open Source](https://img.shields.io/badge/rhizomatics%20open%20source-lightseagreen)](https://github.com/rhizomatics)
