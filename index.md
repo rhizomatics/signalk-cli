@@ -2,6 +2,8 @@
 
 Query and explore NMEA and other boat data from SignalK APIs using the command line or the Python API. Export data as CSV, Apache Arrow Feather, or JSON or use as dataframes in scripts or data notebooks.
 
+`signalk_cli` goes beyond raw API data extraction to automatically handle metrics and ‘wide’ tables that bring together aggregates like ‘max’ or ‘avg’ into separate columns for simpler queries. It also has an analysis tools to summarize data variability.
+
 APIs supported:
 
 ### [SignalK v2 History API](https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html).
@@ -53,7 +55,7 @@ cd signalk-cli
 uv sync
 ```
 
-## Temporary Installation
+## Use without Installing
 
 Use `uv` to run without installing the module permanently, for example:
 
@@ -63,6 +65,12 @@ uv run --with signalk-cli signalk_cli.history list-providers
 
 ```bash
 uv run --with signalk-cli signalk_cli.stream deltas navigation.position --follow
+```
+
+Wildcards to follow multiple paths need to be quoted
+
+```bash
+uv run --with signalk-cli signalk_cli.stream deltas 'environment.outside.wind.*' --follow
 ```
 
 ## Python library
@@ -548,3 +556,7 @@ Typical combinations:
 ## Default caching
 
 The default history provider is fetched from the server once and cached per host in `~/.cache/signalk-history-cli/`. Pass `--no-cache` to force a fresh lookup, or `--provider <id>` to target a specific provider explicitly.
+
+## Too Much Streaming Data
+
+If the data is too noisy, like GPS positions with dubious centimeter differences, then [signalk-delta-squelch-plugin](https://github.com/rhizomatics/signalk-delta-squelch-plugin) can cut this down hugely, and also filter out GPS glitches that suggest your boat moves at warp speed.
