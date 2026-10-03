@@ -12,7 +12,24 @@ Query and explore NMEA and other boat data from SignalK APIs using the command l
 
 `signalk_cli` goes beyond raw API data extraction to automatically handle metrics and ‘wide’ tables that bring together aggregates like ‘max’ or ‘avg’ into separate columns for simpler queries. It also has an analysis tools to summarize data variability.
 
-APIs supported:
+uv run --with signalk-cli signalk_cli.history list-providersprovider,isDefault\
+kip,False\
+signalk-parquet,True
+
+uv run --with signalk-cli signalk_cli.history query 'environment.outside.wind.gust:max' 'environment.wind.speedApparent:avg' --duration P7D --resolution 1m\
+timestamp,path,value\
+2026-10-03T09:11:00Z,environment.wind.speedApparent,5.8\
+2026-10-03T09:12:00Z,environment.outside.wind.gust,45.36699999999996\
+2026-10-03T09:12:00Z,environment.wind.speedApparent,5.8\
+2026-10-03T09:13:00Z,environment.outside.wind.gust,15.317000000000009
+
+uv run --with signalk-cli signalk_cli.stream deltas 'environment.outside.wind.\*' --follow\
+timestamp,context,source,path,value\
+2026-10-03T09:08:21.042Z,vessels.urn:mrn:signalk:uuid:64f1567b-2fc2-474f-8b23-4e9c43b61ffb,simulator.0,environment.outside.wind.gust,44.29449999999997\
+2026-10-03T09:08:23.042Z,vessels.urn:mrn:signalk:uuid:64f1567b-2fc2-474f-8b23-4e9c43b61ffb,simulator.0,environment.outside.wind.gust,45.29449999999997\
+...
+
+## APIs supported:
 
 ### [SignalK v2 History API](https://demo.signalk.org/documentation/Developing/REST_APIs/History_API.html).
 
