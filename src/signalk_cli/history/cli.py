@@ -5,7 +5,7 @@ import csv
 import json
 import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Generator
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -92,7 +92,7 @@ def _client(
 
 
 @contextlib.contextmanager
-def _exit_on_error(doing: str) -> Iterator[None]:
+def _exit_on_error(doing: str) -> Generator[None]:
     """Report a failed request as 'Error <doing>: <message>' and exit 1."""
     try:
         yield

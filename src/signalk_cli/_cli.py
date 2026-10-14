@@ -3,7 +3,7 @@
 import contextlib
 import io
 import logging
-from collections.abc import Iterator
+from collections.abc import Generator
 
 import click
 
@@ -38,7 +38,7 @@ def bare_option(f):
 
 
 @contextlib.contextmanager
-def stderr_ctx(bare: bool) -> Iterator[None]:
+def stderr_ctx(bare: bool) -> Generator[None]:
     """Route library log messages to stderr for one command, or discard them all if bare."""
     handler = _ClickHandler()
     previous_level = logger.level
