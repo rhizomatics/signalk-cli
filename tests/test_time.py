@@ -98,7 +98,7 @@ def test_params_formats_aware_datetime_as_utc():
 
 
 def test_params_treats_naive_datetime_as_utc():
-    naive = datetime(2026, 5, 27, 12, 0)  # noqa: DTZ001
+    naive = datetime(2026, 5, 27, 12, 0)
     assert TimeRange(end=naive).params() == {"to": "2026-05-27T12:00:00Z"}
 
 
