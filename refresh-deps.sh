@@ -1,7 +1,7 @@
 #!/bin/bash
 git pull
 echo "Upgrading uv ..."
-uv self update
+mise upgrade
 echo "Upgrading uv deps ..."
 uv lock --upgrade
 echo "Pre-commit autoupdate ..."
