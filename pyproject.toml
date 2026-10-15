@@ -51,7 +51,7 @@ dev = [
     "genbadge[all]",
     "icdiff",
     "codespell",
-    "polars>=1.44.2,<2.0.0",
+    "polars>=1.44.2,<3.0.0",
     "duckdb>=1.5.5,<2.0.0",
     "pandas>=3.0.6,<4.0.0",
 ]
