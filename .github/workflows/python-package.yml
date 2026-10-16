@@ -54,7 +54,7 @@ jobs:
           echo "No changes to badges"
         fi
 
-    - name: Mkdocs
+    - name: properdocs
       if: github.event_name == 'push'
       run:  |
         git pull

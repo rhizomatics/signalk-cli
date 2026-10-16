@@ -12,7 +12,7 @@ repos:
       - id: check-yaml
         name: Check for un-parseable yaml
         args: [--allow-multiple-documents]
-        exclude: mkdocs.yml
+        exclude: properdocs.yml
       - id: check-executables-have-shebangs
         name: Check shell script for shebang lines
       - id: check-shebang-scripts-are-executable
