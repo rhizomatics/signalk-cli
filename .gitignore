@@ -17,3 +17,6 @@ wheels/
 
 # data
 *.csv
+
+# Claude Code: personal permissions stay local; share only deliberate project settings in settings.json
+.claude/settings.local.json
