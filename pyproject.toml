@@ -139,7 +139,7 @@ allowed-unresolved-imports = ["pyarrow", "pyarrow.**"]
 compile-bytecode = true
 managed = true
 exclude-newer = "7 days"
-exclude-newer-package = {"uv_build"="2 days"}
+exclude-newer-package = {certifi=false, "uv_build"="2 days"}
 add-bounds = "major"
 
 [build-system]
