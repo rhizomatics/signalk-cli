@@ -15,6 +15,7 @@ Import from `signalk_cli.stream` (or `signalk_cli` for the main classes).
         - DeltaStream
         - DeltaMessage
         - DeltaRow
+        - STREAM_PATH
         - rows_to_arrow
         - source_matches
         - build_subscribe_message

@@ -14,6 +14,7 @@ Import from `signalk_cli.history` (or `signalk_cli` for the main classes).
         - HistoryClient
         - HistoryResult
         - AGGREGATION_METHODS
+        - HISTORY_BASE
         - build_path_specs
         - match_paths
 

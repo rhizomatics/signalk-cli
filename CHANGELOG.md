@@ -4,7 +4,11 @@ description: Command line access to SignalK APIs and streaming data, for piping 
 ---
 
 # v3.0.1
+## 📚 Documentation
+- API Docs for the new Python APIs for history and streaming
 ## 📝 Other changes
+- Tested on Polars v2 (v1 still works ok)
+- Tested on DuckDB v2 (v1 still works ok)
 - Minor dependency updates
 - Build chain security fixes
 
