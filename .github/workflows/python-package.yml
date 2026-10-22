@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  # use uv-managed Python, not the runner's older system 3.14 (eMudhra fix needs >=3.14.9)
+  UV_PYTHON_PREFERENCE: only-managed
+
 jobs:
   build:
     runs-on: ubuntu-latest
