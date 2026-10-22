@@ -1,3 +1,16 @@
+# v3.0.1
+
+## 📚 Documentation
+
+- API Docs for the new Python APIs for history and streaming
+
+## 📝 Other changes
+
+- Tested on Polars v2 (v1 still works ok)
+- Tested on DuckDB v2 (v1 still works ok)
+- Minor dependency updates
+- Build chain security fixes
+
 # v3.0.0
 
 ## ✨ Enhancements

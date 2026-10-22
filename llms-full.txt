@@ -733,6 +733,12 @@ AGGREGATION_METHODS = (
 )
 ```
 
+## HISTORY_BASE
+
+```python
+HISTORY_BASE = '/signalk/v2/api/history'
+```
+
 ## HistoryClient
 
 ```python
@@ -1101,6 +1107,12 @@ import polars as pl
 df = pl.DataFrame(table)
 ```
 
+## STREAM_PATH
+
+```python
+STREAM_PATH = '/signalk/v1/stream'
+```
+
 ## StreamClient
 
 ```python
@@ -1411,6 +1423,19 @@ discover_host(timeout: float = 5.0) -> str | None
 
 Browse mDNS for a SignalK server and return its base URL, or None.
 # Release notes
+
+# v3.0.1
+
+## 📚 Documentation
+
+- API Docs for the new Python APIs for history and streaming
+
+## 📝 Other changes
+
+- Tested on Polars v2 (v1 still works ok)
+- Tested on DuckDB v2 (v1 still works ok)
+- Minor dependency updates
+- Build chain security fixes
 
 # v3.0.0
 

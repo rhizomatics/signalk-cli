@@ -30,6 +30,12 @@ AGGREGATION_METHODS = (
 )
 ```
 
+## HISTORY_BASE
+
+```python
+HISTORY_BASE = '/signalk/v2/api/history'
+```
+
 ## HistoryClient
 
 ```python

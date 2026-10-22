@@ -16,6 +16,12 @@ import polars as pl
 df = pl.DataFrame(table)
 ```
 
+## STREAM_PATH
+
+```python
+STREAM_PATH = '/signalk/v1/stream'
+```
+
 ## StreamClient
 
 ```python
