@@ -1,6 +1,6 @@
 [project]
 name = "signalk-cli"
-version = "3.0.0"
+version = "3.0.1"
 description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather from command line or as a Python API"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -68,6 +68,7 @@ docs=[
     "mkdocs-meta-descriptions-plugin",
     "pngquant",
     "termynal",
+    "pillow>=13.0.0",
     "mkdocs-htmlproofer-plugin",
     "mkdocs-llmstxt>=0.5.0,<0.6.0",
     "mkdocstrings[python]>=1.0.6,<2.0.0",
@@ -139,11 +140,11 @@ allowed-unresolved-imports = ["pyarrow", "pyarrow.**"]
 compile-bytecode = true
 managed = true
 exclude-newer = "7 days"
-exclude-newer-package = {certifi=false, "uv_build"="2 days"}
+exclude-newer-package = {certifi=false, pillow=false,"uv_build"="2 days"}
 add-bounds = "major"
 
 [build-system]
-requires = ["uv_build>=0.12.0,<0.13.0"]
+requires = ["uv_build>=0.12.0"]
 build-backend = "uv_build"
 
 

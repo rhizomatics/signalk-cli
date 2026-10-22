@@ -5,16 +5,13 @@ description: Use signalk-cli as a Python library to query SignalK history and li
 
 # Python library
 
-Everything the CLI does is available from Python, for scripts, apps and notebooks
-(including [marimo](https://marimo.io) and Jupyter in the browser via Pyodide).
+Everything the CLI does is available from Python, for scripts, apps and notebooks (including [marimo](https://marimo.io) and Jupyter in the browser via Pyodide).
 
 ```bash
 pip install signalk-cli
 ```
 
-Queries return an [`ArrowTable`][signalk_cli.ArrowTable], which loads directly into any
-Arrow-aware dataframe library through the
-[Arrow PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html).
+Queries return an [`ArrowTable`][signalk_cli.ArrowTable], which loads directly into any Arrow-aware dataframe library through the [Arrow PyCapsule interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html).
 signalk-cli itself only depends on the small `nanoarrow` package for this, not on pyarrow.
 
 ## History
@@ -64,16 +61,14 @@ The same table works with other libraries:
 
 ### Table shapes
 
-Both shapes have one row per timestamp and path, with a UTC `timestamp` column and a
-`path` column.
+Both shapes have one row per timestamp and path, with a UTC `timestamp` column and a `path` column.
 
 | Shape | When | Value columns |
 |---|---|---|
 | **wide** | No aggregation given (the default) | `min_value`, `avg_value`, `max_value` for numbers; `longitude`/`latitude` for positions; `value_0`, `value_1`, ... for other arrays |
 | **long** | An `aggregation`, or inline specs like `navigation.speedOverGround:sma:5` | `value`: float when every value is a number, otherwise text (objects and arrays as JSON) |
 
-Pass `shape="long"` or `shape="wide"` to [`query()`][signalk_cli.history.api.HistoryClient.query]
-to choose.
+Pass `shape="long"` or `shape="wide"` to [`query()`][signalk_cli.history.api.HistoryClient.query] to choose.
 
 !!! warning "Wide column names may change"
     The wide shape's column names aren't settled yet and may change in a future release.
@@ -81,16 +76,13 @@ to choose.
 ### Paths and patterns
 
 Paths are sent as given unless they contain a pattern character
-(`* ? + [ ] ( ) { } | ^ $ \`), in which case they're matched against the paths the
-server has data for. Globs (`navigation.*`) and Python regular expressions
+(`* ? + [ ] ( ) { } | ^ $ \`), in which case they're matched against the paths the server has data for. Globs (`navigation.*`) and Python regular expressions
 (`speed(OverGround|ThroughWater)`) both work.
 
 ### Time ranges
 
-[`TimeRange`][signalk_cli.TimeRange] takes any of `start`, `end` and `duration`, as ISO 8601
-strings, datetimes, integer seconds or timedeltas. Date durations such as `P1D` are
-converted to explicit start and end times, since the server only accepts time-only
-durations. With no range, the last hour is used.
+[`TimeRange`][signalk_cli.TimeRange] takes any of `start`, `end` and `duration`, as ISO 8601 strings, datetimes, integer seconds or timedeltas. Date durations such as `P1D` are
+converted to explicit start and end times, since the server only accepts time-only durations. With no range, the last hour is used.
 
 ### Statistics
 
@@ -116,16 +108,13 @@ with client.open(["navigation.speedOverGround"], timeout=None) as stream:
         print(row.timestamp, row.source, row.value)
 ```
 
-Row values keep their JSON types. Filter by source with `sources=("Teltonika",)`, and
-include metadata entries (units, zones, ...) with `include_meta=True`.
+Row values keep their JSON types. Filter by source with `sources=("Teltonika",)`, and include metadata entries (units, zones, ...) with `include_meta=True`.
 
 ## Errors and logging
 
-Failed requests raise [`SignalKError`][signalk_cli.SignalKError], carrying the server's
-error message and HTTP `status_code`.
+Failed requests raise [`SignalKError`][signalk_cli.SignalKError], carrying the server's error message and HTTP `status_code`.
 
-Progress messages and warnings (such as a pattern matching no paths) go to the
-`signalk_cli` logger, which is silent unless your application configures logging:
+Progress messages and warnings (such as a pattern matching no paths) go to the `signalk_cli` logger, which is silent unless your application configures logging:
 
 ```python
 import logging
@@ -135,6 +124,4 @@ logging.basicConfig(level=logging.INFO)
 
 ## Pyodide / WebAssembly
 
-`micropip.install("signalk-cli")` installs everything needed; `zeroconf` is skipped
-there automatically. mDNS discovery isn't available in the browser, so pass the
-server's URL to the client.
+`micropip.install("signalk-cli")` installs everything needed; `zeroconf` is skipped there automatically. mDNS discovery isn't available in the browser, so pass the server's URL to the client.
