@@ -163,7 +163,7 @@ See rows_to_arrow() for the columns.
 ## DeltaMessage
 
 ```python
-DeltaMessage(text: str, payload: dict)
+DeltaMessage(text: str, payload: dict[str, Any])
 ```
 
 A delta message from the server.
@@ -171,7 +171,7 @@ A delta message from the server.
 Attributes:
 
 - **`text`** (`str`) – The message exactly as received.
-- **`payload`** (`dict`) – The decoded message.
+- **`payload`** (`dict[str, Any]`) – The decoded message.
 
 ### rows
 
@@ -240,7 +240,7 @@ build_subscribe_message(
     period_ms: int | None = None,
     policy: str | None = None,
     min_period_ms: int | None = None,
-) -> dict
+) -> dict[str, Any]
 ```
 
 Build a client subscribe message for the given context and paths.

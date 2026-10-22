@@ -3,7 +3,7 @@
 ## ArrowTable
 
 ```python
-ArrowTable(columns: dict[str, tuple[list, Any]])
+ArrowTable(columns: dict[str, tuple[list[Any], Any]])
 ```
 
 A table of query results, ready to load into any Arrow-aware dataframe library.
@@ -36,7 +36,7 @@ column_names: list[str]
 ### to_pydict
 
 ```python
-to_pydict() -> dict[str, list]
+to_pydict() -> dict[str, list[Any]]
 ```
 
 Return the columns as plain Python lists (timestamps as epoch microseconds).

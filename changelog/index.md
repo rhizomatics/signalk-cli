@@ -1,3 +1,14 @@
+# v3.0.2
+
+## 🚨 Breaking changes
+
+- Python 3.13 support dropped - it will probably work but is no longer being tested
+
+## 📝 Other changes
+
+- Python 3.15 now added to manifest and automated tests
+- Stricter type checking across codebase
+
 # v3.0.1
 
 ## 📚 Documentation

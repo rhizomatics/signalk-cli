@@ -88,7 +88,7 @@ Close the session, if the client created it.
 ```python
 fetch(
     endpoint: str,
-    params: dict | None = None,
+    params: dict[str, Any] | None = None,
     *,
     stream: bool = False,
 ) -> niquests.Response
@@ -273,7 +273,9 @@ Like cardinality(), as a list of dicts.
 ## HistoryResult
 
 ```python
-HistoryResult(payload: dict, *, wide: bool = False)
+HistoryResult(
+    payload: dict[str, Any], *, wide: bool = False
+)
 ```
 
 A /values response, with conversions to tables and statistics.
