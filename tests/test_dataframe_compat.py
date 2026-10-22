@@ -24,7 +24,8 @@ from tests.conftest import (
 
 def _polars(table: ArrowTable) -> list[dict[str, Any]]:
     pl = pytest.importorskip("polars")
-    return pl.DataFrame(table).to_dicts()
+    rows: list[dict[str, Any]] = pl.DataFrame(table).to_dicts()
+    return rows
 
 
 def _pandas(table: ArrowTable) -> list[dict[str, Any]]:
@@ -57,7 +58,8 @@ def _duckdb(table: ArrowTable) -> list[dict[str, Any]]:
 
 def _pyarrow(table: ArrowTable) -> list[dict[str, Any]]:
     pa = pytest.importorskip("pyarrow")
-    return pa.table(table).to_pylist()
+    rows: list[dict[str, Any]] = pa.table(table).to_pylist()
+    return rows
 
 
 LOADERS: dict[str, Callable[[ArrowTable], list[dict[str, Any]]]] = {

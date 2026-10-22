@@ -3,6 +3,7 @@
 import json
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from types import CapsuleType
 from typing import Any
 
 import nanoarrow as na
@@ -64,7 +65,7 @@ class ArrowTable:
         ```
     """
 
-    def __init__(self, columns: dict[str, tuple[list, Any]]) -> None:
+    def __init__(self, columns: dict[str, tuple[list[Any], Any]]) -> None:
         self._columns = {name: values for name, (values, _) in columns.items()}
         self._types = {name: t for name, (_, t) in columns.items()}
         lengths = {len(v) for v in self._columns.values()}
@@ -80,14 +81,14 @@ class ArrowTable:
         *,
         text_columns: Sequence[str] = (),
         timestamp_name: str = "timestamp",
-    ) -> "ArrowTable":
+    ) -> ArrowTable:
         """Build a table with a UTC timestamp column followed by the given columns.
 
         Column types are inferred from the values (see `infer_column`),
         except `text_columns`, which are always strings so an empty result
         keeps the same schema.
         """
-        built: dict[str, tuple[list, Any]] = {
+        built: dict[str, tuple[list[Any], Any]] = {
             timestamp_name: ([_epoch_us(t) for t in timestamps], _TIMESTAMP)
         }
         for name, values in columns.items():
@@ -112,11 +113,11 @@ class ArrowTable:
         cols = ", ".join(f"{n}: {self._types[n].type.name}" for n in self._columns)
         return f"ArrowTable({self._num_rows} rows; {cols})"
 
-    def to_pydict(self) -> dict[str, list]:
+    def to_pydict(self) -> dict[str, list[Any]]:
         """Return the columns as plain Python lists (timestamps as epoch microseconds)."""
         return {name: list(values) for name, values in self._columns.items()}
 
-    def _batch(self):
+    def _batch(self) -> Any:
         children = [
             na.c_array(values, self._types[name])
             for name, values in self._columns.items()
@@ -126,13 +127,18 @@ class ArrowTable:
             schema, self._num_rows, [None], children=children
         )
 
-    def __arrow_c_schema__(self):
-        return na.c_schema(
+    def __arrow_c_schema__(self) -> CapsuleType:
+        capsule: CapsuleType = na.c_schema(
             na.struct({name: self._types[name] for name in self._columns})
         ).__arrow_c_schema__()
+        return capsule
 
-    def __arrow_c_stream__(self, requested_schema=None):
-        return na.ArrayStream(self._batch()).__arrow_c_stream__(requested_schema)
+    def __arrow_c_stream__(
+        self, requested_schema: CapsuleType | None = None
+    ) -> CapsuleType:
+        stream = na.ArrayStream(self._batch())
+        capsule: CapsuleType = stream.__arrow_c_stream__(requested_schema)
+        return capsule
 
 
 def write_feather(table: ArrowTable, output: str) -> None:

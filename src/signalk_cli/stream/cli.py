@@ -15,7 +15,9 @@ from .api import (
     SUBSCRIBE_POLICIES,
     SUBSCRIPTION_POLICIES,
     DeltaRow,
+    Policy,
     StreamClient,
+    Subscribe,
     rows_to_arrow,
 )
 from .output import (
@@ -33,7 +35,7 @@ _AUTO_OUTPUT = "__auto_output__"
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-def cli():
+def cli() -> None:
     """SignalK v1 streaming (delta) CLI."""
 
 
@@ -159,23 +161,23 @@ def cli():
 )
 @bare_option
 def deltas(
-    paths,
-    host,
-    no_cache,
-    context,
-    subscribe,
-    policy,
-    period,
-    min_period,
-    fmt,
-    no_header,
-    include_meta,
-    source,
-    output,
-    follow,
-    count,
-    bare,
-):
+    paths: tuple[str, ...],
+    host: str | None,
+    no_cache: bool,
+    context: str,
+    subscribe: Subscribe,
+    policy: Policy,
+    period: float,
+    min_period: float | None,
+    fmt: str | None,
+    no_header: bool,
+    include_meta: bool,
+    source: tuple[str, ...],
+    output: str | None,
+    follow: bool,
+    count: int | None,
+    bare: bool,
+) -> None:
     """Stream live delta updates from the SignalK v1 Streaming API.
 
     Connects via WebSocket and prints delta messages as they arrive, in
@@ -252,7 +254,8 @@ def deltas(
             )
             output = f"signalk-stream-{server_name}-{ts}{ext}"
 
-        write_to_stdout = output is None or output == "-"
+        out_file = None if output is None or output == "-" else output
+        write_to_stdout = out_file is None
         write_to_file = not write_to_stdout
 
         if fmt == "feather" and write_to_stdout:
@@ -291,8 +294,8 @@ def deltas(
         header_written = False
         feather_rows: list[DeltaRow] = []
         fh = (
-            open(output, "w", newline="")  # noqa: SIM115
-            if write_to_file and fmt != "feather"
+            open(out_file, "w", newline="")  # noqa: SIM115
+            if out_file is not None and fmt != "feather"
             else None
         )
         sink = fh or sys.stdout
@@ -325,9 +328,9 @@ def deltas(
             if fh:
                 fh.close()
 
-        if fmt == "feather":
+        if fmt == "feather" and out_file is not None:
             write_feather(
-                rows_to_arrow(feather_rows, include_meta=include_meta), output
+                rows_to_arrow(feather_rows, include_meta=include_meta), out_file
             )
 
         if write_to_file:

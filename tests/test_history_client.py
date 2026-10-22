@@ -1,7 +1,7 @@
 """Tests for history/api.py — HistoryClient, HistoryResult and path helpers."""
 
 import logging
-from typing import cast
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import niquests
@@ -39,7 +39,7 @@ class FakeSession:
 
     def __init__(self, routes: dict[str, object]) -> None:
         self.routes = routes
-        self.requests: list[tuple[str, dict]] = []
+        self.requests: list[tuple[str, dict[str, Any]]] = []
         self.closed = False
 
     def get(self, url, params=None, **kwargs):
@@ -58,7 +58,7 @@ class FakeSession:
     def endpoints(self) -> list[str]:
         return [e for e, _ in self.requests]
 
-    def params(self, endpoint: str) -> dict:
+    def params(self, endpoint: str) -> dict[str, Any]:
         return next(p for e, p in self.requests if e == endpoint)
 
 
@@ -70,7 +70,7 @@ def _client(routes=None, **kwargs) -> tuple[HistoryClient, FakeSession]:
     ), session
 
 
-def _http_error(status: int, body: dict) -> niquests.HTTPError:
+def _http_error(status: int, body: dict[str, Any]) -> niquests.HTTPError:
     resp = MagicMock()
     resp.status_code = status
     resp.json.return_value = body

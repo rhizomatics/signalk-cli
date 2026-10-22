@@ -49,7 +49,7 @@ def build_subscribe_message(
     period_ms: int | None = None,
     policy: str | None = None,
     min_period_ms: int | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Build a client subscribe message for the given context and paths.
 
     An empty path list subscribes to all paths within the context (equivalent
@@ -103,7 +103,7 @@ def source_matches(source: str, patterns: Sequence[str]) -> bool:
     )
 
 
-def _update_source(update: dict) -> str:
+def _update_source(update: dict[str, Any]) -> str:
     return update.get("$source") or json.dumps(update.get("source", {}))
 
 
@@ -133,7 +133,7 @@ class DeltaMessage:
     """
 
     text: str
-    payload: dict
+    payload: dict[str, Any]
 
     def rows(
         self, *, include_meta: bool = False, sources: Sequence[str] = ()
@@ -186,7 +186,7 @@ def rows_to_arrow(
     objects and arrays as JSON.
     """
     text = ["context", "source", "path", "kind"]
-    columns: dict[str, list] = {
+    columns: dict[str, list[Any]] = {
         "context": [r.context for r in rows],
         "source": [r.source for r in rows],
         "path": [r.path for r in rows],
@@ -247,7 +247,7 @@ class DeltaStream:
                 payload = payload.decode("utf-8", errors="replace")
             try:
                 message = json.loads(payload)
-            except (TypeError, json.JSONDecodeError):
+            except TypeError, json.JSONDecodeError:
                 continue
             if not isinstance(message, dict) or "updates" not in message:
                 continue

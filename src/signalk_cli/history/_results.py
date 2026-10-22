@@ -33,13 +33,13 @@ def _is_number(v: object) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
-def _cell(row: list, col_idx: int) -> Any:
+def _cell(row: list[Any], col_idx: int) -> Any:
     """Value at 0-based value column col_idx (row[0] is the timestamp), or None."""
     i = col_idx + 1
     return row[i] if i < len(row) else None
 
 
-def _paths_by_column(payload: dict) -> list[str]:
+def _paths_by_column(payload: dict[str, Any]) -> list[str]:
     return [
         col.get("path", f"col_{i}") for i, col in enumerate(payload.get("values", []))
     ]
@@ -50,7 +50,7 @@ def _paths_by_column(payload: dict) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def long_rows(payload: dict) -> tuple[list[str], list[str], list[Any]]:
+def long_rows(payload: dict[str, Any]) -> tuple[list[str], list[str], list[Any]]:
     """Flatten a /values response into (timestamps, paths, values), skipping nulls."""
     col_paths = _paths_by_column(payload)
     timestamps: list[str] = []
@@ -74,7 +74,7 @@ def long_rows(payload: dict) -> tuple[list[str], list[str], list[Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _first_value(data_rows: list, col_idx: int) -> Any:
+def _first_value(data_rows: list[Any], col_idx: int) -> Any:
     for row in data_rows:
         if row:
             v = _cell(row, col_idx)
@@ -89,7 +89,9 @@ def _array_col_names(path: str, length: int) -> list[str]:
     return [f"value_{i}" for i in range(length)]
 
 
-def wide_rows(payload: dict) -> tuple[list[str], list[str], dict[str, list[Any]]]:
+def wide_rows(
+    payload: dict[str, Any],
+) -> tuple[list[str], list[str], dict[str, list[Any]]]:
     """Reshape a /values response into (timestamps, paths, value_columns).
 
     Scalar paths fill `min_value`/`avg_value`/`max_value`. Array paths
@@ -166,7 +168,7 @@ def wide_rows(payload: dict) -> tuple[list[str], list[str], dict[str, list[Any]]
 # ---------------------------------------------------------------------------
 
 
-def _distinct_2dp(vals: list) -> int | None:
+def _distinct_2dp(vals: list[Any]) -> int | None:
     if not vals:
         return 0
     if all(_is_number(v) for v in vals):
@@ -178,7 +180,7 @@ def _distinct_2dp(vals: list) -> int | None:
     return None
 
 
-def cardinality(payload: dict) -> list[dict[str, Any]]:
+def cardinality(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Per-path statistics: distinct values, nulls, zeroes, and min/max/average.
 
     Each row has the keys in `CARDINALITY_COLUMNS`. `min`, `max` and
@@ -188,7 +190,7 @@ def cardinality(payload: dict) -> list[dict[str, Any]]:
     """
     col_paths = _paths_by_column(payload)
     ordered = list(dict.fromkeys(col_paths))
-    vals: dict[str, list] = {p: [] for p in ordered}
+    vals: dict[str, list[Any]] = {p: [] for p in ordered}
     nulls = dict.fromkeys(ordered, 0)
     zeroes = dict.fromkeys(ordered, 0)
 

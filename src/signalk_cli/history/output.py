@@ -18,7 +18,9 @@ def _text(v: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
-def write_csv(result: dict, sink: IO[str], no_header: bool) -> tuple[int, set[str]]:
+def write_csv(
+    result: dict[str, Any], sink: IO[str], no_header: bool
+) -> tuple[int, set[str]]:
     """Write result as CSV rows (timestamp, path, value). Returns (row_count, unique_paths)."""
     timestamps, paths, values = long_rows(result)
     writer = csv.writer(sink)
@@ -30,7 +32,7 @@ def write_csv(result: dict, sink: IO[str], no_header: bool) -> tuple[int, set[st
 
 
 def write_json(
-    result: dict, sink: IO[str], indent: int | None = None
+    result: dict[str, Any], sink: IO[str], indent: int | None = None
 ) -> tuple[int, set[str]]:
     """Write result as a JSON array of {timestamp, path, value} objects."""
     timestamps, paths, values = long_rows(result)
@@ -48,7 +50,7 @@ def write_json(
 
 
 def write_csv_wide(
-    result: dict, sink: IO[str], no_header: bool
+    result: dict[str, Any], sink: IO[str], no_header: bool
 ) -> tuple[int, set[str]]:
     """Write result as CSV with wide value columns."""
     timestamps, paths, value_cols = wide_rows(result)
@@ -62,7 +64,7 @@ def write_csv_wide(
 
 
 def write_json_wide(
-    result: dict, sink: IO[str], indent: int | None = None
+    result: dict[str, Any], sink: IO[str], indent: int | None = None
 ) -> tuple[int, set[str]]:
     """Write result as a JSON array of wide row objects."""
     timestamps, paths, value_cols = wide_rows(result)

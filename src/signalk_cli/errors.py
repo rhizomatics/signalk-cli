@@ -28,7 +28,7 @@ class SignalKError(Exception):
         self.status_code = status_code
 
     @classmethod
-    def from_request(cls, exc: niquests.RequestException) -> "SignalKError":
+    def from_request(cls, exc: niquests.RequestException) -> SignalKError:
         """Wrap a niquests exception, using the server's error message if it sent one."""
         resp = getattr(exc, "response", None)
         status = getattr(resp, "status_code", None)

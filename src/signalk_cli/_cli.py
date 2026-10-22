@@ -3,7 +3,8 @@
 import contextlib
 import io
 import logging
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from typing import Any
 
 import click
 
@@ -19,7 +20,7 @@ class _ClickHandler(logging.Handler):
         click.echo(self.format(record), err=True)
 
 
-def host_option(f):
+def host_option[F: Callable[..., Any]](f: F) -> F:
     return click.option(
         "--host",
         default=None,
@@ -29,7 +30,7 @@ def host_option(f):
     )(f)
 
 
-def bare_option(f):
+def bare_option[F: Callable[..., Any]](f: F) -> F:
     return click.option(
         "--bare",
         is_flag=True,
@@ -65,7 +66,7 @@ def resolve_host(host: str | None, no_cache: bool = False) -> str:
         if cached:
             click.echo(f"Using cached host: {cached}", err=True)
             return cached
-    if net.Zeroconf is None:
+    if not net.mdns_available():
         raise click.UsageError(
             "No host specified and mDNS discovery unavailable (zeroconf not "
             "installed). Use --host or set SIGNALK_HOST."

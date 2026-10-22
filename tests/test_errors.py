@@ -1,5 +1,6 @@
 """Tests for errors.py — SignalKError and api_error."""
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import niquests
@@ -58,5 +59,5 @@ def test_api_error_extracts_message_key():
 def test_api_error_no_response():
     exc = MagicMock()
     exc.response = None
-    exc.__str__.return_value = "connection refused"
+    cast(MagicMock, exc.__str__).return_value = "connection refused"
     assert api_error(exc) == "connection refused"

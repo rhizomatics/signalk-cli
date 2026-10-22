@@ -101,7 +101,7 @@ def _is_pattern(path: str) -> bool:
     return ":" not in path and any(c in path for c in _PATTERN_CHARS)
 
 
-def _compile(pattern: str) -> re.Pattern:
+def _compile(pattern: str) -> re.Pattern[str]:
     if _GLOB_ONLY_RE.match(pattern):
         return re.compile(fnmatch.translate(pattern))
     try:
@@ -149,7 +149,7 @@ class HistoryResult:
             the result reads naturally in the wide shape.
     """
 
-    def __init__(self, payload: dict, *, wide: bool = False) -> None:
+    def __init__(self, payload: dict[str, Any], *, wide: bool = False) -> None:
         self.payload = payload
         self.wide = wide
 
@@ -183,7 +183,7 @@ class HistoryResult:
 
 
 def _cardinality_table(rows: list[dict[str, Any]]) -> ArrowTable:
-    columns: dict[str, tuple[list, Any]] = {
+    columns: dict[str, tuple[list[Any], Any]] = {
         "path": ([r["path"] for r in rows], na.string())
     }
     for col in _results.CARDINALITY_COLUMNS[1:]:
@@ -256,7 +256,11 @@ class HistoryClient:
     # -- low level ----------------------------------------------------------
 
     def fetch(
-        self, endpoint: str, params: dict | None = None, *, stream: bool = False
+        self,
+        endpoint: str,
+        params: dict[str, Any] | None = None,
+        *,
+        stream: bool = False,
     ) -> niquests.Response:
         """GET a History API endpoint (e.g. `"values"`, `"paths"`) and return the response.
 
@@ -275,18 +279,20 @@ class HistoryClient:
             raise SignalKError.from_request(e) from e
         return resp
 
-    def _get_json(self, endpoint: str, params: dict | None = None) -> Any:
+    def _get_json(self, endpoint: str, params: dict[str, Any] | None = None) -> Any:
         return self.fetch(endpoint, params).json()
 
     # -- providers ----------------------------------------------------------
 
     def providers(self) -> dict[str, dict[str, Any]]:
         """Registered history providers, as `{id: {"isDefault": bool, ...}}`."""
-        return self._get_json("_providers")
+        providers: dict[str, dict[str, Any]] = self._get_json("_providers")
+        return providers
 
     def default_provider(self) -> str:
         """The id of the server's default history provider."""
-        return self._get_json("_providers/_default")["id"]
+        provider_id: str = self._get_json("_providers/_default")["id"]
+        return provider_id
 
     def _provider_cache_file(self) -> Path:
         return CACHE_DIR / f"{re.sub(r'[^\w.-]', '_', self.host)}.provider"

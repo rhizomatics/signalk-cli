@@ -2,11 +2,21 @@
 
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 try:
     from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 except ImportError:  # slim/Pyodide installs ship without zeroconf
     Zeroconf = None  # type: ignore[assignment,misc]
+
+if TYPE_CHECKING:
+    from zeroconf import Zeroconf as ZeroconfInstance
+
+
+def mdns_available() -> bool:
+    """True if zeroconf is installed, so mDNS discovery can run."""
+    return Zeroconf is not None
+
 
 CACHE_DIR = Path.home() / ".cache" / "signalk-cli"
 _SIGNALK_TYPE = "_signalk-ws._tcp.local."
@@ -37,7 +47,7 @@ def discover_host(timeout: float = 5.0) -> str | None:
     found: list[str] = []
 
     def _on_change(
-        zeroconf: Zeroconf,
+        zeroconf: ZeroconfInstance,
         service_type: str,
         name: str,
         state_change: ServiceStateChange,

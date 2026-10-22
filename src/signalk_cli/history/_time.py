@@ -4,6 +4,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 logger = logging.getLogger("signalk_cli")
 
@@ -75,7 +76,7 @@ def normalise_duration(
         return (now - delta).strftime(fmt), now.strftime(fmt), None
 
 
-def apply_time_default(time_params: dict) -> dict:
+def apply_time_default(time_params: dict[str, Any]) -> dict[str, Any]:
     """If neither 'from' nor 'duration' is set, default to the hour ending at 'to' (or now)."""
     if "from" in time_params or "duration" in time_params:
         return time_params
@@ -137,7 +138,7 @@ class TimeRange:
     end: str | datetime | None = None
     duration: str | int | timedelta | None = None
 
-    def resolved(self) -> "TimeRange":
+    def resolved(self) -> TimeRange:
         """Return an equivalent range the server accepts, with all values as strings.
 
         The server only accepts time-only durations (PT...), so durations

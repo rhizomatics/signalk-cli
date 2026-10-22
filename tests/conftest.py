@@ -1,5 +1,7 @@
 """Shared fixtures and test data."""
 
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -93,7 +95,7 @@ def make_response(json_data: object, status_code: int = 200) -> MagicMock:
     return resp
 
 
-def url_dispatcher(routes: dict[str, object]):
+def url_dispatcher(routes: dict[str, object]) -> Callable[..., MagicMock]:
     """Return a side_effect function that routes by URL substring."""
 
     def _dispatch(url: str, **kwargs: object) -> MagicMock:
@@ -193,7 +195,7 @@ DELTA_WITH_META = {
 }
 
 
-def make_ws(payloads: list) -> MagicMock:
+def make_ws(payloads: list[Any]) -> MagicMock:
     """Build a mock WebSocket extension with a fixed sequence of next_payload() results."""
     ws = MagicMock()
     ws.next_payload.side_effect = payloads

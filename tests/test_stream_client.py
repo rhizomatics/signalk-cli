@@ -1,7 +1,7 @@
 """Tests for stream/api.py — StreamClient, DeltaStream, DeltaMessage and helpers."""
 
 import json
-from typing import cast
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import niquests
@@ -29,7 +29,7 @@ from tests.conftest import (
 )
 
 
-def _msg(payload: dict) -> DeltaMessage:
+def _msg(payload: dict[str, Any]) -> DeltaMessage:
     return DeltaMessage(json.dumps(payload), payload)
 
 

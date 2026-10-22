@@ -1,9 +1,10 @@
 [project]
 name = "signalk-cli"
-version = "3.0.1"
+version = "3.0.2"
 description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather from command line or as a Python API"
 readme = "README.md"
-requires-python = ">=3.13"
+# 3.14.9 / 3.15.1 bundle pip with certifi 2026.10.19 (eMudhra distrust)
+requires-python = ">=3.14.9,!=3.15.0"
 license="Apache-2.0"
 authors = [
     { name = "jey burrows", email = "jrb@rhizomatics.org.uk" }
@@ -19,11 +20,13 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Scientific/Engineering",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14"
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15"
 ]
 
 dependencies = [
+    # eMudhra intermediate CA distrust
+    "certifi>=2026.10.19",
     "click>=8.3.3",
     "nanoarrow>=0.9.0,<1.0.0",
     "niquests[ws]>=2.28",
@@ -51,6 +54,7 @@ dev = [
     "genbadge[all]",
     "icdiff",
     "codespell",
+    "virtualenv>=21.14.9", # ANT-2026-UK90QC27
     "polars>=1.44.2,<3.0.0",
     "duckdb>=1.5.5,<3.0.0",
     "pandas>=3.0.6,<4.0.0",
@@ -127,6 +131,14 @@ ignore-words-list="hass,referer,uint"
 
 [tool.mypy]
 mypy_path=["./src"]
+strict = true
+
+[[tool.mypy.overrides]]
+# tests: bodies are still checked, but annotations aren't required
+module = ["tests.*", "conftest", "test_*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
 module = ["pyarrow.*", "nanoarrow.*"]
@@ -140,7 +152,7 @@ allowed-unresolved-imports = ["pyarrow", "pyarrow.**"]
 compile-bytecode = true
 managed = true
 exclude-newer = "7 days"
-exclude-newer-package = {certifi=false, pillow=false,"uv_build"="2 days"}
+exclude-newer-package = {certifi=false, pillow=false, virtualenv=false,"uv_build"="2 days"}
 add-bounds = "major"
 
 [build-system]

@@ -5,9 +5,10 @@ import csv
 import json
 import re
 import sys
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 import click
@@ -34,7 +35,9 @@ _AUTO_OUTPUT = "__auto_output__"
 # ---------------------------------------------------------------------------
 
 
-def _list_fmt_callback(ctx, param, value):
+def _list_fmt_callback(
+    ctx: click.Context, param: click.Parameter, value: str | None
+) -> str | None:
     if value is None:
         return value
     v = value.lower()
@@ -52,7 +55,7 @@ _host_option = host_option
 _resolve_host = resolve_host
 
 
-def _provider_options(f):
+def _provider_options[F: Callable[..., Any]](f: F) -> F:
     f = click.option("--no-cache", is_flag=True, help="Ignore cached default provider")(
         f
     )
@@ -63,7 +66,7 @@ def _provider_options(f):
     return f
 
 
-def _time_options(f):
+def _time_options[F: Callable[..., Any]](f: F) -> F:
     f = click.option(
         "--duration",
         metavar="DURATION",
@@ -81,7 +84,10 @@ _stderr_ctx = stderr_ctx
 
 
 def _client(
-    host, provider=None, no_cache=False, context="vessels.self"
+    host: str | None,
+    provider: str | None = None,
+    no_cache: bool = False,
+    context: str = "vessels.self",
 ) -> HistoryClient:
     return HistoryClient(
         resolve_host(host, no_cache),
@@ -104,7 +110,7 @@ def _exit_on_error(doing: str) -> Generator[None]:
         sys.exit(1)
 
 
-def _echo_time(time_params: dict, width: int) -> None:
+def _echo_time(time_params: dict[str, Any], width: int) -> None:
     for label, key, missing in (
         ("From:", "from", "(server default)"),
         ("To:", "to", "(server default)"),
@@ -113,7 +119,7 @@ def _echo_time(time_params: dict, width: int) -> None:
         click.echo(f"{label:<{width}}{time_params.get(key, missing)}", err=True)
 
 
-def _summary(table_paths, row_count: int) -> str:
+def _summary(table_paths: Iterable[str], row_count: int) -> str:
     unique = sorted(set(table_paths))
     return f"{row_count} rows, {len(unique)} unique path(s): {', '.join(unique)}"
 
@@ -124,7 +130,7 @@ def _summary(table_paths, row_count: int) -> str:
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-def cli():
+def cli() -> None:
     """SignalK v2 history CLI."""
 
 
@@ -196,24 +202,24 @@ def cli():
 )
 @_bare_option
 def query(
-    paths,
-    host,
-    from_,
-    to,
-    duration,
-    resolution,
-    context,
-    provider,
-    no_cache,
-    aggregation,
-    samples,
-    alpha,
-    fmt,
-    no_header,
-    output,
-    pretty,
-    bare,
-):
+    paths: tuple[str, ...],
+    host: str | None,
+    from_: str | None,
+    to: str | None,
+    duration: str | None,
+    resolution: str | None,
+    context: str,
+    provider: str | None,
+    no_cache: bool,
+    aggregation: str | None,
+    samples: int | None,
+    alpha: float | None,
+    fmt: str | None,
+    no_header: bool,
+    output: str | None,
+    pretty: bool,
+    bare: bool,
+) -> None:
     """Query history and write results as CSV, JSON, or Feather.
 
     Outputs to stdout by default. Use --output to write to a file.
@@ -266,7 +272,8 @@ def query(
             )
             output = f"signalk-history-{server_name}-{ts}{ext}"
 
-        write_to_stdout = output is None or output == "-"
+        out_file = None if output is None or output == "-" else output
+        write_to_stdout = out_file is None
         write_to_file = not write_to_stdout
 
         if fmt == "feather" and write_to_stdout:
@@ -317,9 +324,9 @@ def query(
 
         indent = 2 if pretty else None
 
-        if fmt == "feather":
+        if fmt == "feather" and out_file is not None:
             table = HistoryResult(resp.json(), wide=wide_mode).to_arrow()
-            write_feather(table, output)
+            write_feather(table, out_file)
             click.echo(f"Wrote {output}", err=True)
             click.echo(_summary(table.to_pydict()["path"], table.num_rows), err=True)
             return
@@ -328,8 +335,8 @@ def query(
             text = (
                 json.dumps(resp.json(), indent=indent) if pretty else (resp.text or "")
             )
-            if write_to_file:
-                Path(output).write_text(text)
+            if out_file is not None:
+                Path(out_file).write_text(text)
                 click.echo(f"Wrote {output}", err=True)
             else:
                 sys.stdout.write(text + "\n")
@@ -337,8 +344,8 @@ def query(
 
         result = resp.json()
         with (
-            open(output, "w", newline="")
-            if write_to_file
+            open(out_file, "w", newline="")
+            if out_file is not None
             else contextlib.nullcontext(sys.stdout)
         ) as sink:
             if fmt == "json":
@@ -347,8 +354,8 @@ def query(
                 if not write_to_file:
                     sink.write("\n")
             else:
-                writer = write_csv_wide if wide_mode else write_csv
-                row_count, unique_paths = writer(result, sink, no_header)
+                csv_writer = write_csv_wide if wide_mode else write_csv
+                row_count, unique_paths = csv_writer(result, sink, no_header)
         if write_to_file:
             click.echo(f"Wrote {output}", err=True)
         click.echo(_summary(unique_paths, row_count), err=True)
@@ -383,19 +390,19 @@ def query(
 @click.option("--no-header", is_flag=True, help="Suppress header row (CSV only)")
 @_bare_option
 def cardinality(
-    paths,
-    host,
-    from_,
-    to,
-    duration,
-    resolution,
-    context,
-    provider,
-    no_cache,
-    fmt,
-    no_header,
-    bare,
-):
+    paths: tuple[str, ...],
+    host: str | None,
+    from_: str | None,
+    to: str | None,
+    duration: str | None,
+    resolution: str | None,
+    context: str,
+    provider: str | None,
+    no_cache: bool,
+    fmt: str,
+    no_header: bool,
+    bare: bool,
+) -> None:
     """Compute per-path value statistics for the given time range.
 
     Outputs a table of: path, distinct_values, min, max, average,
@@ -465,7 +472,17 @@ def cardinality(
     help="Output format: csv (one item per line), json (re-serialized), or raw (exact API response body). Feather is only available on `query` (requires signalk-cli[feather]).",
 )
 @_bare_option
-def list_paths(host, from_, to, duration, provider, no_cache, context, fmt, bare):
+def list_paths(
+    host: str | None,
+    from_: str | None,
+    to: str | None,
+    duration: str | None,
+    provider: str | None,
+    no_cache: bool,
+    context: str,
+    fmt: str,
+    bare: bool,
+) -> None:
     """List paths that have data for the given time range."""
     with _stderr_ctx(bare):
         client = _client(host, provider, no_cache, context)
@@ -505,7 +522,7 @@ def list_paths(host, from_, to, duration, provider, no_cache, context, fmt, bare
     help="Output format: csv (one item per line), json (re-serialized), or raw (exact API response body). Feather is only available on `query` (requires signalk-cli[feather]).",
 )
 @_bare_option
-def list_providers(host, fmt, bare):
+def list_providers(host: str | None, fmt: str, bare: bool) -> None:
     """List registered history providers."""
     with _stderr_ctx(bare):
         client = _client(host)
@@ -548,7 +565,16 @@ def list_providers(host, fmt, bare):
     help="Output format: csv (one item per line), json (re-serialized), or raw (exact API response body). Feather is only available on `query` (requires signalk-cli[feather]).",
 )
 @_bare_option
-def list_contexts(host, from_, to, duration, provider, no_cache, fmt, bare):
+def list_contexts(
+    host: str | None,
+    from_: str | None,
+    to: str | None,
+    duration: str | None,
+    provider: str | None,
+    no_cache: bool,
+    fmt: str,
+    bare: bool,
+) -> None:
     """List contexts that have historical data for the given time range."""
     with _stderr_ctx(bare):
         client = _client(host, provider, no_cache)
