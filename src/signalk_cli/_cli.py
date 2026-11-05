@@ -1,5 +1,7 @@
 """Click helpers shared by the history and stream CLIs. Not part of the library API."""
 
+from __future__ import annotations
+
 import contextlib
 import io
 import logging

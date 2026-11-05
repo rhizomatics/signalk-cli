@@ -1,5 +1,7 @@
 """A small Arrow table built with nanoarrow, handed to dataframe libraries via the PyCapsule interface."""
 
+from __future__ import annotations
+
 import json
 from collections.abc import Mapping, Sequence
 from datetime import datetime

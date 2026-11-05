@@ -4,6 +4,8 @@ Values keep their JSON types here (numbers, strings, objects, arrays); the CLI
 writers and the Arrow conversion decide how to represent them.
 """
 
+from __future__ import annotations
+
 import json
 import re
 from typing import Any

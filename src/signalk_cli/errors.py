@@ -1,5 +1,7 @@
 """Exceptions raised by the signalk_cli library API."""
 
+from __future__ import annotations
+
 import contextlib
 
 import niquests

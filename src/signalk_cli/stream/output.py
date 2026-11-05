@@ -1,5 +1,7 @@
 """CSV, JSON Lines, bare-value and Feather writers for the stream CLI."""
 
+from __future__ import annotations
+
 import csv
 import json
 from collections.abc import Sequence

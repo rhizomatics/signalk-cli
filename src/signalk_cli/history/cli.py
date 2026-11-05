@@ -1,5 +1,7 @@
 """Click CLI for the SignalK v2 History API."""
 
+from __future__ import annotations
+
 import contextlib
 import csv
 import json

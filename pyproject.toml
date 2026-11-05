@@ -3,8 +3,8 @@ name = "signalk-cli"
 version = "3.0.2"
 description = "Query SignalK v2 APIs and export data as CSV, JSON or Apache Arrow Feather from command line or as a Python API"
 readme = "README.md"
-# 3.14.9 / 3.15.1 bundle pip with certifi 2026.10.19 (eMudhra distrust)
-requires-python = ">=3.14.9,!=3.15.0"
+# 3.13.17 / 3.14.9 / 3.15.1 are the first to bundle pip with certifi 2026.10.19 (eMudhra distrust)
+requires-python = ">=3.13.17,!=3.14.0,!=3.14.1,!=3.14.2,!=3.14.3,!=3.14.4,!=3.14.5,!=3.14.6,!=3.14.7,!=3.14.8,!=3.15.0"
 license="Apache-2.0"
 authors = [
     { name = "jey burrows", email = "jrb@rhizomatics.org.uk" }
@@ -20,6 +20,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Scientific/Engineering",
     "Programming Language :: Python",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15"
 ]

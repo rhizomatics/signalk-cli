@@ -1,5 +1,7 @@
 """CSV, JSON and Feather writers for the history CLI."""
 
+from __future__ import annotations
+
 import csv
 import json
 from typing import IO, Any

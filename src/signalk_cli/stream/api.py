@@ -13,6 +13,8 @@ Examples:
     ```
 """
 
+from __future__ import annotations
+
 import fnmatch
 import json
 from collections.abc import Iterator, Sequence
@@ -247,7 +249,7 @@ class DeltaStream:
                 payload = payload.decode("utf-8", errors="replace")
             try:
                 message = json.loads(payload)
-            except TypeError, json.JSONDecodeError:
+            except (TypeError, json.JSONDecodeError):
                 continue
             if not isinstance(message, dict) or "updates" not in message:
                 continue

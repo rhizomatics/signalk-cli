@@ -1,5 +1,7 @@
 """Click CLI for the SignalK v1 Streaming (delta) API."""
 
+from __future__ import annotations
+
 import re
 import sys
 from datetime import UTC, datetime

@@ -1,5 +1,4 @@
-# Run Python hooks on 3.14, as the HA repos do: the code uses 3.14-only syntax (PEP 758
-# `except A, B:`), which mypy rejects when pre-commit.ci builds hook envs on its older default.
+# Run Python hooks on 3.14, as the HA repos do, rather than pre-commit.ci's older default.
 default_language_version:
   python: python3.14
 repos:

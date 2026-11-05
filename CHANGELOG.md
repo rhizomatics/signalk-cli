@@ -5,9 +5,9 @@ description: Command line access to SignalK APIs and streaming data, for piping 
 
 # v3.0.2
 ## 🚨 Breaking changes
-- Python 3.13 support dropped - it will probably work but is no longer being tested
+- Minimum Python patch versions raised to those bundling the eMudhra certificate distrust fix: 3.13.17, 3.14.9 or 3.15.1
 ## 📝 Other changes
-- Python 3.15 now added to manifest and automated tests
+- Python 3.15 now added to manifest and automated tests, alongside 3.13 and 3.14
 - Stricter type checking across codebase
 
 # v3.0.1
