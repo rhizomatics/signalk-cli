@@ -41,7 +41,7 @@ timestamp,context,source,path,value\
 
 `signalk-cli` is published to [PyPi](https://pypi.org/project/signalk-cli/)
 
-Python is required to run this, version 3.14.9 or above. [uv](https://docs.astral.sh/uv/) is the recommended way to install the package ( and can install Python ) but is not required.
+Python is required to run this, version 3.13.17, 3.14.9 or 3.15.1 or above (the first releases with the eMudhra certificate distrust fix). [uv](https://docs.astral.sh/uv/) is the recommended way to install the package ( and can install Python ) but is not required.
 
 ### PyPi
 
@@ -64,7 +64,7 @@ See [signalk-datalab-plugin](https://github.com/rhizomatics/signalk-datalab-plug
 
 ### Local Copy
 
-Requires Python 3.14.9+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.13.17+, 3.14.9+ or 3.15.1+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/rhizomatics/signalk-cli
