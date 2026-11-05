@@ -1,6 +1,6 @@
 [tools]
 pre-commit = "latest"
-python = "3.14.9"
+python = "3.14"
 ruff = "latest"
 ty = "latest"
 uv = "latest"
