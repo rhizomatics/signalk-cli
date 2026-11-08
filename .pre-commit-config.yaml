@@ -75,8 +75,3 @@ repos:
     hooks:
       - id: ty
         args: [--no-python-downloads]
-
-ci:
-  # ty resolves the project environment, which pre-commit.ci can't build (no network, no
-  # Python downloads); it still runs locally, as in autoarm, supernotify and updates2mqtt
-  skip: [ty]
