@@ -8,6 +8,7 @@ description: Command line access to SignalK APIs and streaming data, for piping 
 [![Rhizomatics Open Source](https://img.shields.io/badge/rhizomatics%20open%20source-lightseagreen)](https://github.com/rhizomatics)
 
 [![PyPI - Version](https://img.shields.io/pypi/v/signalk-cli)](https://pypi.org/project/signalk-cli/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/signalk-cli?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/signalk-cli)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/rhizomatics/signalk-cli)
 [![Coverage](https://raw.githubusercontent.com/rhizomatics/signalk-cli/refs/heads/badges/badges/coverage.svg)](https://signalk-cli.rhizomatics.org.uk/developer/coverage/)
 ![Tests](https://raw.githubusercontent.com/rhizomatics/signalk-cli/refs/heads/badges/badges/tests.svg)
