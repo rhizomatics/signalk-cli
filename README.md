@@ -5,7 +5,7 @@ description: Command line access to SignalK APIs and streaming data, for piping 
 
 # SignalK CLI
 
-[![Rhizomatics Open Source](https://img.shields.io/badge/rhizomatics%20open%20source-lightseagreen)](https://github.com/rhizomatics) [![managed by hq](https://raw.githubusercontent.com/rhizomatics/hq/main/assets/badge-managed-by-hq.svg)](https://github.com/rhizomatics/hq)
+[![Rhizomatics Open Source](https://img.shields.io/badge/rhizomatics%20open%20source-lightseagreen)](https://github.com/rhizomatics) [![managed by hq](https://raw.githubusercontent.com/rhizomatics/hq/main/assets/badge-managed-by-hq.svg)](https://hq.rhizomatics.org.uk/)
 
 [![PyPI - Version](https://img.shields.io/pypi/v/signalk-cli)](https://pypi.org/project/signalk-cli/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/signalk-cli?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/signalk-cli)
