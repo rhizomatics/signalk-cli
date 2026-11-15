@@ -624,6 +624,6 @@ Typical combinations:
 
 The default history provider is fetched from the server once and cached per host in `~/.cache/signalk-history-cli/`. Pass `--no-cache` to force a fresh lookup, or `--provider <id>` to target a specific provider explicitly.
 
-## Too Much Streaming Data
+## Too Much Streaming Data
 
 If the data is too noisy, like GPS positions with dubious centimeter differences, then [signalk-delta-squelch-plugin](https://github.com/rhizomatics/signalk-delta-squelch-plugin) can cut this down hugely, and also filter out GPS glitches that suggest your boat moves at warp speed.
