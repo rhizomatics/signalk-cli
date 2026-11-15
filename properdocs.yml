@@ -18,6 +18,7 @@ nav:
 
 theme:
   name: materialx
+  custom_dir: overrides
   highlightjs: true
   logo: /assets/images/logo-256.png
   language: en
